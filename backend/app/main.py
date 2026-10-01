@@ -31,6 +31,9 @@ from app.semantic_search import build_embeddings_index, append_single_embedding
 from app.semantic_search import semantic_search as run_semantic_search
 from app.visual_detector import get_visual_detector
 from app.visual_search import get_visual_search_engine
+from app.captioning import generate_caption
+from app.qr_decoder import extract_qr_payloads
+from app.steganography import extract_stego_text, compute_document_hash
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -154,6 +157,12 @@ def upload_image(background_tasks: BackgroundTasks, file: UploadFile = File(...)
     vis_res = detector.detect_visual_objects(dest_path)
     has_visual = 1 if vis_res.get("detected") else 0
 
+    # 5B. Run Multimodal BLIP Captioning, QR payload decoder, & Steganography Reader (Phase 4 Extensions)
+    blip_cap = generate_caption(dest_path)
+    qr_res = extract_qr_payloads(dest_path)
+    stego_text = extract_stego_text(dest_path)
+    doc_sha256 = sha256_hash or compute_document_hash(dest_path)
+
     # 6. Store in Database
     row = database.save_image(
         image_name=safe_name,
@@ -175,9 +184,15 @@ def upload_image(background_tasks: BackgroundTasks, file: UploadFile = File(...)
         exif_created_at=img_meta["exif_created_at"],
         primary_date=img_meta["primary_date"],
     )
+    database.update_multimodal_payloads(
+        image_id=row["id"],
+        blip_caption=blip_cap,
+        qr_payload=qr_res.get("qr_summary", ""),
+        stego_payload=stego_text,
+    )
     database.update_image_duplicates(
         image_id=row["id"],
-        sha256_hash=sha256_hash,
+        sha256_hash=doc_sha256,
         phash=phash,
         is_duplicate=is_dupe,
         canonical_image_id=canon_id,
@@ -203,6 +218,9 @@ def upload_image(background_tasks: BackgroundTasks, file: UploadFile = File(...)
         "extracted_text": row["extracted_text"],
         "original_ocr_text": row.get("original_ocr_text", row["extracted_text"]),
         "cleaned_text": row.get("cleaned_text", row["extracted_text"]),
+        "blip_caption": blip_cap,
+        "qr_payload": qr_res.get("qr_summary", ""),
+        "stego_payload": stego_text,
         "entities": row.get("entities", entities),
         "has_visual_objects": vis_info["has_visual_objects"],
         "visual_objects": vis_info["visual_objects"],
@@ -212,7 +230,7 @@ def upload_image(background_tasks: BackgroundTasks, file: UploadFile = File(...)
         "canonical_image_name": dupe_res.get("canonical_image_name"),
         "duplicate_match_type": dupe_match_type,
         "duplicate_similarity": dupe_sim,
-        "sha256_hash": sha256_hash,
+        "sha256_hash": doc_sha256,
         "phash": phash,
         "message": (
             "Duplicate image linked to canonical document."

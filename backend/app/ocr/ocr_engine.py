@@ -19,10 +19,14 @@ _reader: Optional[easyocr.Reader] = None
 
 
 def get_ocr_reader(languages: Optional[List[str]] = None) -> easyocr.Reader:
-    """Singleton getter for EasyOCR Reader."""
+    """Singleton getter for EasyOCR Reader with multi-language (en + mr) support."""
     global _reader
     if _reader is None:
-        _reader = easyocr.Reader(languages or ["en"], gpu=False, verbose=False)
+        target_langs = languages or ["en", "mr"]
+        try:
+            _reader = easyocr.Reader(target_langs, gpu=False, verbose=False)
+        except Exception:
+            _reader = easyocr.Reader(["en"], gpu=False, verbose=False)
     return _reader
 
 

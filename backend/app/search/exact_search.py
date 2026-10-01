@@ -62,7 +62,7 @@ def compute_exact_score(query: str, text: str, filename: str) -> float:
 
 
 def exact_search(query: str, min_score: float = 0.70) -> List[Dict[str, Any]]:
-    """Executes exact lexical search across all stored images."""
+    """Executes exact lexical search across all stored images, including BLIP captions and QR payloads."""
     cleaned = query.strip()
     if not cleaned:
         return []
@@ -71,13 +71,17 @@ def exact_search(query: str, min_score: float = 0.70) -> List[Dict[str, Any]]:
     results = []
 
     for row in all_rows:
-        score = compute_exact_score(cleaned, row["extracted_text"], row["image_name"])
+        searchable_text = f"{row.get('extracted_text', '')} {row.get('blip_caption', '')} {row.get('qr_payload', '')} {row.get('stego_payload', '')}"
+        score = compute_exact_score(cleaned, searchable_text, row["image_name"])
         if score >= min_score:
             results.append({
                 "id": row["id"],
                 "image_name": row["image_name"],
                 "image_path": row["image_path"],
-                "matched_text": row["extracted_text"],
+                "matched_text": searchable_text.strip(),
+                "blip_caption": row.get("blip_caption", ""),
+                "qr_payload": row.get("qr_payload", ""),
+                "stego_payload": row.get("stego_payload", ""),
                 "match_score": round(score, 3),
                 "ocr_confidence": float(row.get("ocr_confidence", 0.85) or 0.85),
                 "is_exact": True,

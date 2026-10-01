@@ -72,6 +72,12 @@ def init_db() -> None:
             conn.execute("ALTER TABLE images ADD COLUMN duplicate_similarity REAL DEFAULT 0.0")
         if "duplicate_match_type" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN duplicate_match_type TEXT DEFAULT ''")
+        if "blip_caption" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN blip_caption TEXT DEFAULT ''")
+        if "qr_payload" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN qr_payload TEXT DEFAULT ''")
+        if "stego_payload" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN stego_payload TEXT DEFAULT ''")
 
         # Indexes for fast lookup
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_phash ON images(phash)")
@@ -236,6 +242,27 @@ def update_image_metadata(
             WHERE id = ?
             """,
             (file_size_bytes, image_width, image_height, file_format, file_modified_at, exif_created_at, primary_date, image_id),
+        )
+        conn.commit()
+
+
+def update_multimodal_payloads(
+    image_id: int,
+    blip_caption: str = "",
+    qr_payload: str = "",
+    stego_payload: str = "",
+) -> None:
+    """Updates BLIP caption, QR payload, and Steganography text for an image."""
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE images SET
+                blip_caption = COALESCE(NULLIF(?, ''), blip_caption),
+                qr_payload = COALESCE(NULLIF(?, ''), qr_payload),
+                stego_payload = COALESCE(NULLIF(?, ''), stego_payload)
+            WHERE id = ?
+            """,
+            (blip_caption, qr_payload, stego_payload, image_id),
         )
         conn.commit()
 
