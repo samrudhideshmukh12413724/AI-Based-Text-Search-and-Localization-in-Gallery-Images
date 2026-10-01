@@ -1,0 +1,262 @@
+{
+  "doc_exp_stamp_01.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 385,
+      "y": 785,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_02.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Top-Right",
+    "bbox": {
+      "x": 655,
+      "y": 195,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_03.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Bottom-Right",
+    "bbox": {
+      "x": 635,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_04.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Left",
+    "bbox": {
+      "x": 135,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_05.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 385,
+      "y": 785,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_06.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Top-Right",
+    "bbox": {
+      "x": 655,
+      "y": 195,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_07.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Right",
+    "bbox": {
+      "x": 635,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_08.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Bottom-Left",
+    "bbox": {
+      "x": 135,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_09.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 385,
+      "y": 785,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_10.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Top-Right",
+    "bbox": {
+      "x": 655,
+      "y": 195,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_11.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Bottom-Right",
+    "bbox": {
+      "x": 635,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_12.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Bottom-Left",
+    "bbox": {
+      "x": 135,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_13.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 385,
+      "y": 785,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_14.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Top-Right",
+    "bbox": {
+      "x": 655,
+      "y": 195,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_15.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Bottom-Right",
+    "bbox": {
+      "x": 635,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_16.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Left",
+    "bbox": {
+      "x": 135,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_17.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 385,
+      "y": 785,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_18.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Circle)",
+    "location_desc": "Top-Right",
+    "bbox": {
+      "x": 655,
+      "y": 195,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_19.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Rectangle)",
+    "location_desc": "Bottom-Right",
+    "bbox": {
+      "x": 635,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  },
+  "doc_exp_stamp_20.jpg": {
+    "query_target": "official stamp",
+    "category": "STAMP",
+    "has_visual_match": true,
+    "visual_target": "Official Stamp (Oval)",
+    "location_desc": "Bottom-Left",
+    "bbox": {
+      "x": 135,
+      "y": 875,
+      "width": 130,
+      "height": 130
+    }
+  }
+}

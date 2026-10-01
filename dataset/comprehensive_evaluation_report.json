@@ -1,0 +1,517 @@
+{
+  "timestamp": "2026-09-03 15:17:04",
+  "corpus_stats": {
+    "total_documents": 259,
+    "total_visual_regions": 1037,
+    "total_queries_tested": 30
+  },
+  "overall_metrics": {
+    "top1_accuracy_percent": 46.67,
+    "top3_accuracy_percent": 60.0,
+    "precision_at_1": 0.467,
+    "ood_rejection_rate_percent": 14.29,
+    "mean_latency_ms": 167506.3
+  },
+  "modality_breakdown": {
+    "multi-modal": {
+      "total": 8,
+      "top1_pass": 5,
+      "top3_pass": 6,
+      "latencies": [
+        15040.471700020134,
+        8556.055900000501,
+        4083.593200019095,
+        8136.633499991149,
+        7798.095199977979,
+        9880.8691999875,
+        9102.865600027144,
+        9116.910699987784
+      ]
+    },
+    "visual": {
+      "total": 7,
+      "top1_pass": 4,
+      "top3_pass": 4,
+      "latencies": [
+        3795.907400024589,
+        7942.512199981138,
+        8563.542300020345,
+        10689.694500004407,
+        9145.822999998927,
+        9647.083199990448,
+        13313.15750000067
+      ]
+    },
+    "text": {
+      "total": 8,
+      "top1_pass": 4,
+      "top3_pass": 7,
+      "latencies": [
+        7641.009300015867,
+        15151.07960003661,
+        16435.39719999535,
+        11192.672199977096,
+        12423.619100009091,
+        10314.30830003228,
+        11548.210699984338,
+        8313.916900020558
+      ]
+    },
+    "ood": {
+      "total": 7,
+      "top1_pass": 1,
+      "top3_pass": 1,
+      "latencies": [
+        779.6481000259519,
+        10622.938200016506,
+        15059.752999979537,
+        7497.722599946428,
+        4738673.303700052,
+        12647.07330003148,
+        12075.766599969938
+      ]
+    }
+  },
+  "query_results": [
+    {
+      "id": "MM-01",
+      "modality": "multi-modal",
+      "query": "Aadhaar",
+      "top1": "doc_exp_composite_21.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {
+        "x": 90,
+        "y": 350,
+        "width": 721,
+        "height": 401
+      },
+      "highlighted_terms": [],
+      "latency_ms": 15040.5
+    },
+    {
+      "id": "MM-02",
+      "modality": "multi-modal",
+      "query": "Samrudhi Deshmukh",
+      "top1": "doc_composite_01_aadhaar.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 54,
+        "y": 840,
+        "width": 270,
+        "height": 240
+      },
+      "highlighted_terms": [],
+      "latency_ms": 8556.1
+    },
+    {
+      "id": "MM-03",
+      "modality": "multi-modal",
+      "query": "student identity card",
+      "top1": "doc_composite_02_student_id.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 4083.6
+    },
+    {
+      "id": "MM-04",
+      "modality": "multi-modal",
+      "query": "Aarav Sharma",
+      "top1": "doc_handwritten_01.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 8136.6
+    },
+    {
+      "id": "MM-05",
+      "modality": "multi-modal",
+      "query": "Priya Patel",
+      "top1": "doc_exp_composite_07.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 7798.1
+    },
+    {
+      "id": "MM-06",
+      "modality": "multi-modal",
+      "query": "Sneha Kulkarni",
+      "top1": "doc_photo_02.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": true,
+      "status": "TOP-3 PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 9880.9
+    },
+    {
+      "id": "MM-07",
+      "modality": "multi-modal",
+      "query": "Arjun Reddy",
+      "top1": "doc_handwritten_04.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 9102.9
+    },
+    {
+      "id": "MM-08",
+      "modality": "multi-modal",
+      "query": "Ananya Iyer",
+      "top1": "doc_handwritten_05.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 9116.9
+    },
+    {
+      "id": "VIS-01",
+      "modality": "visual",
+      "query": "signature",
+      "top1": "doc_exp_composite_07.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {
+        "x": 558,
+        "y": 864,
+        "width": 288,
+        "height": 216
+      },
+      "highlighted_terms": [],
+      "latency_ms": 3795.9
+    },
+    {
+      "id": "VIS-02",
+      "modality": "visual",
+      "query": "official circular stamp seal",
+      "top1": "doc_exp_stamp_19.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 615,
+        "y": 890,
+        "width": 171,
+        "height": 101
+      },
+      "highlighted_terms": [],
+      "latency_ms": 7942.5
+    },
+    {
+      "id": "VIS-03",
+      "modality": "visual",
+      "query": "student photo",
+      "top1": "doc_photo_03.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 8563.5
+    },
+    {
+      "id": "VIS-04",
+      "modality": "visual",
+      "query": "QR code verification matrix",
+      "top1": "doc_qr_03.jpg",
+      "score": 0.792,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 900,
+        "height": 1200
+      },
+      "highlighted_terms": [],
+      "latency_ms": 10689.7
+    },
+    {
+      "id": "VIS-05",
+      "modality": "visual",
+      "query": "handwritten cursive text",
+      "top1": "doc_exp_sign_15.jpg",
+      "score": 0.725,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {
+        "x": 54,
+        "y": 840,
+        "width": 270,
+        "height": 240
+      },
+      "highlighted_terms": [],
+      "latency_ms": 9145.8
+    },
+    {
+      "id": "VIS-06",
+      "modality": "visual",
+      "query": "registrar official seal stamp",
+      "top1": "doc_exp_stamp_01.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 365,
+        "y": 800,
+        "width": 171,
+        "height": 101
+      },
+      "highlighted_terms": [],
+      "latency_ms": 9647.1
+    },
+    {
+      "id": "VIS-07",
+      "modality": "visual",
+      "query": "authorized signatory signature",
+      "top1": "doc_sign_01.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {
+        "x": 558,
+        "y": 864,
+        "width": 288,
+        "height": 216
+      },
+      "highlighted_terms": [],
+      "latency_ms": 13313.2
+    },
+    {
+      "id": "TXT-01",
+      "modality": "text",
+      "query": "scholarship",
+      "top1": "scholarship.jpg",
+      "score": 1.0,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 7641.0
+    },
+    {
+      "id": "TXT-02",
+      "modality": "text",
+      "query": "bonafide certificate",
+      "top1": "doc_stamp_05.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": true,
+      "status": "TOP-3 PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 630,
+        "y": 880,
+        "width": 181,
+        "height": 181
+      },
+      "highlighted_terms": [],
+      "latency_ms": 15151.1
+    },
+    {
+      "id": "TXT-03",
+      "modality": "text",
+      "query": "tuition fee regulatory overview",
+      "top1": "doc_qr_02.jpg",
+      "score": 0.743,
+      "is_top1": false,
+      "is_top3": true,
+      "status": "TOP-3 PASS",
+      "has_visual_box": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 900,
+        "height": 1200
+      },
+      "highlighted_terms": [],
+      "latency_ms": 16435.4
+    },
+    {
+      "id": "TXT-04",
+      "modality": "text",
+      "query": "laboratory safety code of conduct",
+      "top1": "doc_exp_negative_10.jpg",
+      "score": 0.725,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 11192.7
+    },
+    {
+      "id": "TXT-05",
+      "modality": "text",
+      "query": "annual convocation robe guidelines",
+      "top1": "doc_exp_negative_09.jpg",
+      "score": 0.725,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 12423.6
+    },
+    {
+      "id": "TXT-06",
+      "modality": "text",
+      "query": "campus canteen price list",
+      "top1": "doc_exp_negative_13.jpg",
+      "score": 0.725,
+      "is_top1": true,
+      "is_top3": true,
+      "status": "PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 10314.3
+    },
+    {
+      "id": "TXT-07",
+      "modality": "text",
+      "query": "public holiday calendar 2026",
+      "top1": "notice_holiday_calendar.jpg",
+      "score": 1.0,
+      "is_top1": false,
+      "is_top3": true,
+      "status": "TOP-3 PASS",
+      "has_visual_box": false,
+      "box": {},
+      "highlighted_terms": [],
+      "latency_ms": 11548.2
+    },
+    {
+      "id": "TXT-08",
+      "modality": "text",
+      "query": "hospitalized medical leave viral fever",
+      "top1": "doc_sign_04.jpg",
+      "score": 0.658,
+      "is_top1": false,
+      "is_top3": false,
+      "status": "FAIL",
+      "has_visual_box": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 900,
+        "height": 1200
+      },
+      "highlighted_terms": [],
+      "latency_ms": 8313.9
+    },
+    {
+      "id": "OOD-01",
+      "modality": "ood",
+      "query": "mango farming in tropical climate",
+      "status": "PASS",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 779.6481000259519
+    },
+    {
+      "id": "OOD-02",
+      "modality": "ood",
+      "query": "quantum gravity black hole radiation",
+      "status": "FAIL (Got 25)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 10622.938200016506
+    },
+    {
+      "id": "OOD-03",
+      "modality": "ood",
+      "query": "electric vehicle lithium battery manufacturing",
+      "status": "FAIL (Got 25)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 15059.752999979537
+    },
+    {
+      "id": "OOD-04",
+      "modality": "ood",
+      "query": "french pastry croissant baking recipe",
+      "status": "FAIL (Got 13)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 7497.722599946428
+    },
+    {
+      "id": "OOD-05",
+      "modality": "ood",
+      "query": "cryptocurrency bitcoin mining hardware",
+      "status": "FAIL (Got 25)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 4738673.303700052
+    },
+    {
+      "id": "OOD-06",
+      "modality": "ood",
+      "query": "marine biology coral reef restoration",
+      "status": "FAIL (Got 10)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 12647.07330003148
+    },
+    {
+      "id": "OOD-07",
+      "modality": "ood",
+      "query": "automobile engine oil viscosity grade 5W30",
+      "status": "FAIL (Got 25)",
+      "top1": "None",
+      "score": 0.0,
+      "latency_ms": 12075.766599969938
+    }
+  ]
+}

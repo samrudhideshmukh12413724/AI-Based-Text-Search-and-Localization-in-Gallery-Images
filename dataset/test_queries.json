@@ -1,0 +1,206 @@
+{
+  "description": "Ground-truth benchmark test queries for comparing Phase 1 keyword search with Phase 2 semantic search.",
+  "total_queries": 20,
+  "queries": [
+    {
+      "query_id": "Q01",
+      "query": "financial assistance for students",
+      "expected_category": "scholarship",
+      "expected_images": [
+        "scholarship.jpg",
+        "scholarship_merit.jpg",
+        "loan_education.jpg"
+      ],
+      "evaluation_note": "Natural language query without exact word 'scholarship'; Phase 2 semantic search should rank scholarship and loan documents at the top."
+    },
+    {
+      "query_id": "Q02",
+      "query": "money and funding for higher studies",
+      "expected_category": "scholarship",
+      "expected_images": [
+        "scholarship_fellowship.jpg",
+        "loan_education.jpg",
+        "scholarship_merit.jpg"
+      ],
+      "evaluation_note": "Semantic search matches 'funding' and 'money' to fellowship grant and student loans."
+    },
+    {
+      "query_id": "Q03",
+      "query": "how to apply for college admission",
+      "expected_category": "admission",
+      "expected_images": [
+        "admission.jpg",
+        "admission_engineering.jpg",
+        "admission_counseling.jpg"
+      ],
+      "evaluation_note": "Matches admission forms and guidelines."
+    },
+    {
+      "query_id": "Q04",
+      "query": "engineering entrance cutoff and seats",
+      "expected_category": "admission",
+      "expected_images": [
+        "admission_engineering.jpg",
+        "admission_counseling.jpg"
+      ],
+      "evaluation_note": "Matches B.Tech engineering guidelines and seat allocation notice."
+    },
+    {
+      "query_id": "Q05",
+      "query": "paying tuition fees voucher",
+      "expected_category": "finance",
+      "expected_images": [
+        "fees.jpg",
+        "fees_exam.jpg",
+        "fees_hostel.jpg"
+      ],
+      "evaluation_note": "Matches college fee receipts and fee schedules."
+    },
+    {
+      "query_id": "Q06",
+      "query": "mess charges and hostel rent",
+      "expected_category": "finance",
+      "expected_images": [
+        "fees_hostel.jpg",
+        "hostel.jpg"
+      ],
+      "evaluation_note": "Matches hostel fee schedule and room allocation form."
+    },
+    {
+      "query_id": "Q07",
+      "query": "when are semester final tests happening?",
+      "expected_category": "academics",
+      "expected_images": [
+        "timetable_exam.jpg",
+        "exam.jpg",
+        "exam_hall_ticket.jpg"
+      ],
+      "evaluation_note": "Matches exam date sheet and semester examination notice."
+    },
+    {
+      "query_id": "Q08",
+      "query": "download student admit card for exams",
+      "expected_category": "examination",
+      "expected_images": [
+        "exam_hall_ticket.jpg",
+        "exam.jpg"
+      ],
+      "evaluation_note": "Matches hall ticket and examination instructions."
+    },
+    {
+      "query_id": "Q09",
+      "query": "semester marks and grade report",
+      "expected_category": "examination",
+      "expected_images": [
+        "exam_results.jpg"
+      ],
+      "evaluation_note": "Matches SGPA scorecard and annual examination results."
+    },
+    {
+      "query_id": "Q10",
+      "query": "computer science daily lecture routine",
+      "expected_category": "academics",
+      "expected_images": [
+        "timetable.jpg"
+      ],
+      "evaluation_note": "Matches weekly class timetable."
+    },
+    {
+      "query_id": "Q11",
+      "query": "borrowing textbooks and reading room",
+      "expected_category": "library",
+      "expected_images": [
+        "library.jpg",
+        "library_books.jpg"
+      ],
+      "evaluation_note": "Matches library membership and book return notice."
+    },
+    {
+      "query_id": "Q12",
+      "query": "overdue book penalty and return date",
+      "expected_category": "library",
+      "expected_images": [
+        "library_books.jpg",
+        "library.jpg"
+      ],
+      "evaluation_note": "Matches library fine notification."
+    },
+    {
+      "query_id": "Q13",
+      "query": "where can students live on campus?",
+      "expected_category": "hostel",
+      "expected_images": [
+        "hostel.jpg",
+        "hostel_rules.jpg",
+        "fees_hostel.jpg"
+      ],
+      "evaluation_note": "Matches campus dormitory accommodation and residence rules."
+    },
+    {
+      "query_id": "Q14",
+      "query": "curfew timings and visitor restrictions",
+      "expected_category": "hostel",
+      "expected_images": [
+        "hostel_rules.jpg",
+        "hostel.jpg"
+      ],
+      "evaluation_note": "Matches student resident hostel guidelines."
+    },
+    {
+      "query_id": "Q15",
+      "query": "college cricket and football tournament",
+      "expected_category": "notice",
+      "expected_images": [
+        "notice.jpg"
+      ],
+      "evaluation_note": "Matches annual sports meet and athletic registration notice."
+    },
+    {
+      "query_id": "Q16",
+      "query": "software engineer job hiring and interview",
+      "expected_category": "career",
+      "expected_images": [
+        "notice_placement.jpg",
+        "notice_internship.jpg"
+      ],
+      "evaluation_note": "Matches campus recruitment drive by tech companies."
+    },
+    {
+      "query_id": "Q17",
+      "query": "paid summer training and internship certificate",
+      "expected_category": "career",
+      "expected_images": [
+        "notice_internship.jpg",
+        "notice_placement.jpg"
+      ],
+      "evaluation_note": "Matches industry training and internship opportunities."
+    },
+    {
+      "query_id": "Q18",
+      "query": "lost college identification card replacement",
+      "expected_category": "administrative",
+      "expected_images": [
+        "application.jpg"
+      ],
+      "evaluation_note": "Matches student ID card duplicate reissue form."
+    },
+    {
+      "query_id": "Q19",
+      "query": "selecting elective subjects online",
+      "expected_category": "administrative",
+      "expected_images": [
+        "registration.jpg"
+      ],
+      "evaluation_note": "Matches course registration portal guide."
+    },
+    {
+      "query_id": "Q20",
+      "query": "official student proof for passport and visa",
+      "expected_category": "administrative",
+      "expected_images": [
+        "bonafide_certificate.jpg"
+      ],
+      "evaluation_note": "Matches bonafide student certificate verification."
+    }
+  ]
+}

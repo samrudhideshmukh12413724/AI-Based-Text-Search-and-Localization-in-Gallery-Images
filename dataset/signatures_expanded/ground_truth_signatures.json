@@ -1,0 +1,536 @@
+{
+  "doc_exp_sign_01.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_02.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_03.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_04.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_05.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_06.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_07.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Right",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 580,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_08.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_09.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_10.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_11.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_12.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_13.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_14.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Bottom-Left",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 260,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 260,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_15.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_16.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_17.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_18.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_19.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  },
+  "doc_exp_sign_20.jpg": {
+    "query_target": "signature",
+    "category": "SIGNATURE",
+    "has_visual_match": true,
+    "visual_target": "Signature",
+    "location_desc": "Dual-Bottom",
+    "signatures": [
+      {
+        "bbox": {
+          "x": 80,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 80,
+      "y": 930,
+      "width": 250,
+      "height": 120
+    }
+  }
+}

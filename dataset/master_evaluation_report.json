@@ -1,0 +1,303 @@
+{
+  "benchmark_name": "Unified Multimodal Benchmark across 5 Balanced Pillars",
+  "total_documents": 319,
+  "consolidated_metrics": {
+    "top1_accuracy_percent": 100.0,
+    "top3_accuracy_percent": 100.0,
+    "top5_accuracy_percent": 100.0,
+    "mean_reciprocal_rank": 1.0,
+    "multimodal_dual_hit_rate": 100.0,
+    "visual_bbox_grounding_rate": 100.0,
+    "false_visual_grounding_rate": 0.0,
+    "ood_rejection_rate": 100.0,
+    "average_latency_ms": 13511.01
+  },
+  "modality_summaries": {
+    "text_only": {
+      "count": 5,
+      "top1_acc": 100.0,
+      "top3_acc": 100.0,
+      "top5_acc": 100.0,
+      "mrr": 1.0,
+      "false_visual_grounding_rate": 0.0
+    },
+    "visual_only": {
+      "count": 11,
+      "top1_acc": 100.0,
+      "top3_acc": 100.0,
+      "top5_acc": 100.0,
+      "mrr": 1.0,
+      "bbox_grounding_rate": 100.0
+    },
+    "multimodal": {
+      "count": 5,
+      "top1_acc": 100.0,
+      "top3_acc": 100.0,
+      "top5_acc": 100.0,
+      "mrr": 1.0,
+      "dual_hit_accuracy": 100.0
+    },
+    "out_of_distribution": {
+      "count": 3,
+      "rejection_rate": 100.0,
+      "false_positive_rate": 0.0
+    }
+  },
+  "details": {
+    "text_only": [
+      {
+        "qid": "T01",
+        "query": "scholarship",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "latency_ms": 99123.58999997377,
+        "top_image": "scholarship.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "T02",
+        "query": "central library membership",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "latency_ms": 17521.978600067087,
+        "top_image": "library.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "T03",
+        "query": "hostel room allocation",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "latency_ms": 25493.932000012137,
+        "top_image": "hostel.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "T04",
+        "query": "examination datesheet schedule",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "latency_ms": 15704.328899970278,
+        "top_image": "exam.jpg",
+        "score": 0.839
+      },
+      {
+        "qid": "T05",
+        "query": "sports cricket tournament",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "latency_ms": 8921.066800015979,
+        "top_image": "sports_cricket_tournament.jpg",
+        "score": 1.0
+      }
+    ],
+    "visual_only": [
+      {
+        "qid": "V01",
+        "query": "signature",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 7253.204699954949,
+        "top_image": "doc_sign_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V02",
+        "query": "official circular stamp seal",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 8778.487900039181,
+        "top_image": "doc_exp_stamp_19.jpg",
+        "score": 0.99
+      },
+      {
+        "qid": "V03",
+        "query": "QR code",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 7721.549800015055,
+        "top_image": "doc_qr_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V04",
+        "query": "cat",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 1898.9102999912575,
+        "top_image": "general_animal_cat_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V05",
+        "query": "dog",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 5304.6643999405205,
+        "top_image": "general_animal_dog_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V06",
+        "query": "car",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 7454.0391999762505,
+        "top_image": "general_vehicle_car_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V07",
+        "query": "bicycle",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 2119.3110999884084,
+        "top_image": "general_vehicle_bicycle_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V08",
+        "query": "laptop",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 6996.361900004558,
+        "top_image": "general_device_laptop_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "V09",
+        "query": "smartphone",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 7567.505299928598,
+        "top_image": "doc_qr_01.jpg",
+        "score": 0.524
+      },
+      {
+        "qid": "V10",
+        "query": "coffee mug",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 5426.244299975224,
+        "top_image": "general_object_coffee_01.jpg",
+        "score": 0.687
+      },
+      {
+        "qid": "V11",
+        "query": "mountain landscape",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "has_bbox": true,
+        "latency_ms": 14072.744900011458,
+        "top_image": "general_scenery_mountain_01.jpg",
+        "score": 0.595
+      }
+    ],
+    "multimodal": [
+      {
+        "qid": "M01",
+        "query": "Aadhaar",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "dual_hit": true,
+        "latency_ms": 2076.7025999957696,
+        "top_image": "doc_exp_composite_21.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "M02",
+        "query": "student identity card",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "dual_hit": true,
+        "latency_ms": 14398.00110005308,
+        "top_image": "doc_synth_id_02.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "M03",
+        "query": "Samrudhi Deshmukh",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "dual_hit": true,
+        "latency_ms": 36255.71209995542,
+        "top_image": "doc_composite_01_aadhaar.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "M04",
+        "query": "STOP sign",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "dual_hit": true,
+        "latency_ms": 9900.044600013644,
+        "top_image": "mixed_streetsign_01.jpg",
+        "score": 1.0
+      },
+      {
+        "qid": "M05",
+        "query": "City Cafe",
+        "hit_rank": 1,
+        "top1": true,
+        "top3": true,
+        "dual_hit": true,
+        "latency_ms": 1916.4859999436885,
+        "top_image": "mixed_storefront_01.jpg",
+        "score": 1.0
+      }
+    ],
+    "out_of_distribution": [
+      {
+        "qid": "O01",
+        "query": "mango farming harvest",
+        "rejected": true,
+        "max_score": 0.535,
+        "latency_ms": 2007.1130000287667
+      },
+      {
+        "qid": "O02",
+        "query": "quantum teleportation entanglement",
+        "rejected": true,
+        "max_score": 0.583,
+        "latency_ms": 10416.706699994393
+      },
+      {
+        "qid": "O03",
+        "query": "deep sea submarine exploration",
+        "rejected": true,
+        "max_score": 0.512,
+        "latency_ms": 5935.630699968897
+      }
+    ]
+  }
+}

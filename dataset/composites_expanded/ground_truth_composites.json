@@ -1,0 +1,1322 @@
+{
+  "doc_exp_composite_01.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_02.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_03.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_04.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_05.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_06.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_07.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_08.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_09.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_10.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Photo_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 135,
+          "y": 885,
+          "width": 130,
+          "height": 130
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_11.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_12.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_13.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_14.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_15.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_16.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_17.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_18.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_19.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_20.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "HallTicket_Photo_QR_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "photo",
+        "bbox": {
+          "x": 690,
+          "y": 170,
+          "width": 140,
+          "height": 170
+        },
+        "loc": "Top-Right"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 80,
+          "y": 900,
+          "width": 150,
+          "height": 150
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 690,
+      "y": 170,
+      "width": 140,
+      "height": 170
+    }
+  },
+  "doc_exp_composite_21.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_22.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_23.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_24.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_25.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_26.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_27.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_28.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_29.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  },
+  "doc_exp_composite_30.jpg": {
+    "query_target": "multimodal composite",
+    "category": "COMPOSITE",
+    "combo_type": "Scholarship_Card_Stamp_Sig",
+    "has_visual_match": true,
+    "objects": [
+      {
+        "type": "id_card",
+        "bbox": {
+          "x": 100,
+          "y": 360,
+          "width": 700,
+          "height": 380
+        },
+        "loc": "Center"
+      },
+      {
+        "type": "stamp",
+        "bbox": {
+          "x": 120,
+          "y": 890,
+          "width": 120,
+          "height": 120
+        },
+        "loc": "Bottom-Left"
+      },
+      {
+        "type": "signature",
+        "bbox": {
+          "x": 580,
+          "y": 930,
+          "width": 250,
+          "height": 120
+        },
+        "loc": "Bottom-Right"
+      }
+    ],
+    "bbox": {
+      "x": 100,
+      "y": 360,
+      "width": 700,
+      "height": 380
+    }
+  }
+}

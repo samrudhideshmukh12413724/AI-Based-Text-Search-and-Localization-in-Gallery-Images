@@ -1,0 +1,567 @@
+{
+  "total_images": 56,
+  "passed_images": 56,
+  "overall_accuracy_percent": 89.15,
+  "details": [
+    {
+      "image_id": "001",
+      "filename": "scholarship.jpg",
+      "category": "scholarship",
+      "accuracy_percent": 86.84,
+      "is_passed": true,
+      "original_ocr_text": "Government Scholarship\nApplication 2026\nFinancial aid and merit support for undergraduate students.\nID: 001\nCategory: SCHOLARSHIP",
+      "cleaned_text": "Government Scholarship Application 2026 Financial aid and merit support for undergraduate students. ID: 001 Category: SCHOLARSHIP",
+      "expected_text": "Government Scholarship Application 2026 Financial aid and merit support for undergraduate students."
+    },
+    {
+      "image_id": "002",
+      "filename": "scholarship_merit.jpg",
+      "category": "scholarship",
+      "accuracy_percent": 88.37,
+      "is_passed": true,
+      "original_ocr_text": "Merit Student Scholarship\nNational Welfare Scheme\nFinancial assistance awarded for academic excellence in\ncollege.\nID: 002\nCategory: SCHOLARSHIP",
+      "cleaned_text": "Merit Student Scholarship National Welfare Scheme Financial assistance awarded for academic excellence in college. ID: 002 Category: SCHOLARSHIP",
+      "expected_text": "Merit Student Scholarship National Welfare Scheme Financial assistance awarded for academic excellence in college."
+    },
+    {
+      "image_id": "003",
+      "filename": "scholarship_fellowship.jpg",
+      "category": "scholarship",
+      "accuracy_percent": 88.37,
+      "is_passed": true,
+      "original_ocr_text": "Research Fellowship Grant\nHigher Education Support\nMonthly stipend and funding for postgraduate research scholars.\nID: 003\nCategory: SCHOLARSHIP",
+      "cleaned_text": "Research Fellowship Grant Higher Education Support Monthly stipend and funding for postgraduate research scholars. ID: 003 Category: SCHOLARSHIP",
+      "expected_text": "Research Fellowship Grant Higher Education Support Monthly stipend and funding for postgraduate research scholars."
+    },
+    {
+      "image_id": "004",
+      "filename": "loan_education.jpg",
+      "category": "finance",
+      "accuracy_percent": 89.76,
+      "is_passed": true,
+      "original_ocr_text": "Student Education Loan\nFinancial Assistance Scheme\nLow interest bank loan for\ncollege tuition and living expenses.\nID: 004\nCategory: FINANCE",
+      "cleaned_text": "Student Education Loan Financial Assistance Scheme Low interest bank loan for college tuition and living expenses. ID: 004 Category: FINANCE",
+      "expected_text": "Student Education Loan Financial Assistance Scheme Low interest bank loan for college tuition and living expenses."
+    },
+    {
+      "image_id": "005",
+      "filename": "admission.jpg",
+      "category": "admission",
+      "accuracy_percent": 86.24,
+      "is_passed": true,
+      "original_ocr_text": "College Admission Form\nAcademic Year 2026\nOfficial application form for new student enrollment:\nID: 005\nCategory: ADMISSION",
+      "cleaned_text": "College Admission Form Academic Year 2026 Official application form for new student enrollment: ID: 005 Category: ADMISSION",
+      "expected_text": "College Admission Form Academic Year 2026 Official application form for new student enrollment."
+    },
+    {
+      "image_id": "006",
+      "filename": "admission_engineering.jpg",
+      "category": "admission",
+      "accuracy_percent": 88.64,
+      "is_passed": true,
+      "original_ocr_text": "B.Tech Engineering Admission\nEligibility and Guidelines\nEntrance exam cutoff criteria and seat matrix for engineering_\nID: 006\nCategory: ADMISSION",
+      "cleaned_text": "B.Tech Engineering Admission Eligibility and Guidelines Entrance exam cutoff criteria and seat matrix for engineering_ ID: 006 Category: ADMISSION",
+      "expected_text": "B.Tech Engineering Admission Eligibility and Guidelines Entrance exam cutoff criteria and seat matrix for engineering."
+    },
+    {
+      "image_id": "007",
+      "filename": "admission_counseling.jpg",
+      "category": "admission",
+      "accuracy_percent": 87.9,
+      "is_passed": true,
+      "original_ocr_text": "Centralized Counseling Notice\nSeat Allocation Round\nDocument verification and campus seat allotment schedule.\nID: 007\nCategory: ADMISSION",
+      "cleaned_text": "Centralized Counseling Notice Seat Allocation Round Document verification and campus seat allotment schedule. ID: 007 Category: ADMISSION",
+      "expected_text": "Centralized Counseling Notice Seat Allocation Round 1 Document verification and campus seat allotment schedule."
+    },
+    {
+      "image_id": "008",
+      "filename": "fees.jpg",
+      "category": "finance",
+      "accuracy_percent": 87.8,
+      "is_passed": true,
+      "original_ocr_text": "College Fee Receipt\nTuition Breakdown 2026\nPayment voucher for semester tuition, lab_\nand development charges_\nID: 008\nCategory: FINANCE",
+      "cleaned_text": "College Fee Receipt Tuition Breakdown 2026 Payment voucher for semester tuition, lab_ and development charges_ ID: 008 Category: FINANCE",
+      "expected_text": "College Fee Receipt Tuition Breakdown 2026 Payment voucher for semester tuition, lab, and development charges."
+    },
+    {
+      "image_id": "009",
+      "filename": "fees_hostel.jpg",
+      "category": "finance",
+      "accuracy_percent": 89.76,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Fee Schedule\nMaintenance and Mess Charges\nDue dates and payment details for residential hall accommodation.\nID: 009\nCategory: FINANCE",
+      "cleaned_text": "Hostel Fee Schedule Maintenance and Mess Charges Due dates and payment details for residential hall accommodation. ID: 009 Category: FINANCE",
+      "expected_text": "Hostel Fee Schedule Maintenance and Mess Charges Due dates and payment details for residential hall accommodation."
+    },
+    {
+      "image_id": "010",
+      "filename": "fees_exam.jpg",
+      "category": "finance",
+      "accuracy_percent": 88.24,
+      "is_passed": true,
+      "original_ocr_text": "Examination Fee Notice\nSemester Assessment Fees\nLate Tee\npenalties and online payment portal instructions.\nID: 010\nCategory: FINANCE",
+      "cleaned_text": "Examination Fee Notice Semester Assessment Fees Late Tee penalties and online payment portal instructions. ID: 010 Category: FINANCE",
+      "expected_text": "Examination Fee Notice Semester Assessment Fees Late fee penalties and online payment portal instructions."
+    },
+    {
+      "image_id": "011",
+      "filename": "exam.jpg",
+      "category": "examination",
+      "accuracy_percent": 88.3,
+      "is_passed": true,
+      "original_ocr_text": "Semester Examination Notice\nInstructions for Candidates\nMandatory exam hall protocols and prohibited electronic items\nID: 011\nCategory: EXAMINATION",
+      "cleaned_text": "Semester Examination Notice Instructions for Candidates Mandatory exam hall protocols and prohibited electronic items ID: 011 Category: EXAMINATION",
+      "expected_text": "Semester Examination Notice Instructions for Candidates Mandatory exam hall protocols and prohibited electronic items."
+    },
+    {
+      "image_id": "012",
+      "filename": "exam_hall_ticket.jpg",
+      "category": "examination",
+      "accuracy_percent": 87.3,
+      "is_passed": true,
+      "original_ocr_text": "Examination Hall Ticket\nStudent Admit Card 2026\nDownload admit card for university final semester theory exams:\nID: 012\nCategory: EXAMINATION",
+      "cleaned_text": "Examination Hall Ticket Student Admit Card 2026 Download admit card for university final semester theory exams: ID: 012 Category: EXAMINATION",
+      "expected_text": "Examination Hall Ticket Student Admit Card 2026 Download admit card for university final semester theory exams."
+    },
+    {
+      "image_id": "013",
+      "filename": "exam_results.jpg",
+      "category": "examination",
+      "accuracy_percent": 87.45,
+      "is_passed": true,
+      "original_ocr_text": "Annual Examination Results\nScorecard & Grade Report\nSemester grade point average SGPA and marks announcement\nID: 013\nCategory: EXAMINATION",
+      "cleaned_text": "Annual Examination Results Scorecard & Grade Report Semester grade point average SGPA and marks announcement ID: 013 Category: EXAMINATION",
+      "expected_text": "Annual Examination Results Scorecard & Grade Report Semester grade point average SGPA and marks announcement."
+    },
+    {
+      "image_id": "014",
+      "filename": "timetable.jpg",
+      "category": "academics",
+      "accuracy_percent": 88.03,
+      "is_passed": true,
+      "original_ocr_text": "Weekly Class Timetable\nComputer Science Semester IV\necture schedule for Data Structures, Al, and Operating Systems.\nID: 014\nCategory: ACADEMICS",
+      "cleaned_text": "Weekly Class Timetable Computer Science Semester IV ecture schedule for Data Structures, Al, and Operating Systems. ID: 014 Category: ACADEMICS",
+      "expected_text": "Weekly Class Timetable Computer Science Semester IV Lecture schedule for Data Structures, AI, and Operating Systems."
+    },
+    {
+      "image_id": "015",
+      "filename": "timetable_exam.jpg",
+      "category": "academics",
+      "accuracy_percent": 87.65,
+      "is_passed": true,
+      "original_ocr_text": "Final Examination Date Sheet\nWinter Session 2026\nSubject wise exam schedule, timings_\nand classroom allocations\nID: 015\nCategory: ACADEMICS",
+      "cleaned_text": "Final Examination Date Sheet Winter Session 2026 Subject wise exam schedule, timings_ and classroom allocations ID: 015 Category: ACADEMICS",
+      "expected_text": "Final Examination Date Sheet Winter Session 2026 Subject wise exam schedule, timings, and classroom allocations."
+    },
+    {
+      "image_id": "016",
+      "filename": "library.jpg",
+      "category": "library",
+      "accuracy_percent": 90.23,
+      "is_passed": true,
+      "original_ocr_text": "Central Library Membership\nStudent Registration Form\nBorrowing limits, digital catalog access, and reading room timings.\nID: 016\nCategory: LIBRARY",
+      "cleaned_text": "Central Library Membership Student Registration Form Borrowing limits, digital catalog access, and reading room timings. ID: 016 Category: LIBRARY",
+      "expected_text": "Central Library Membership Student Registration Form Borrowing limits, digital catalog access, and reading room timings."
+    },
+    {
+      "image_id": "017",
+      "filename": "library_books.jpg",
+      "category": "library",
+      "accuracy_percent": 85.82,
+      "is_passed": true,
+      "original_ocr_text": "Library Book Return Notice\nDue Dates & Overdue\nReturn issued textbooks before the end of semester to avoid penalty.\nID: 017\nCategory: LIBRARY\nFines",
+      "cleaned_text": "Library Book Return Notice Due Dates & Overdue Return issued textbooks before the end of semester to avoid penalty. ID: 017 Category: LIBRARY Fines",
+      "expected_text": "Library Book Return Notice Due Dates & Overdue Fines Return issued textbooks before the end of semester to avoid penalty."
+    },
+    {
+      "image_id": "018",
+      "filename": "hostel.jpg",
+      "category": "hostel",
+      "accuracy_percent": 90.0,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Room Allocation\nCampus Residence Form\nApplication for dormitory room and mess facility for outstation students\nID: 018\nCategory: HOSTEL",
+      "cleaned_text": "Hostel Room Allocation Campus Residence Form Application for dormitory room and mess facility for outstation students ID: 018 Category: HOSTEL",
+      "expected_text": "Hostel Room Allocation Campus Residence Form Application for dormitory room and mess facility for outstation students."
+    },
+    {
+      "image_id": "019",
+      "filename": "hostel_rules.jpg",
+      "category": "hostel",
+      "accuracy_percent": 89.96,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Rules & Regulations\nStudent Resident Guidelines\nCurfew timings, visitor restrictions, and campus security policies_\nID: 019\nCategory: HOSTEL",
+      "cleaned_text": "Hostel Rules & Regulations Student Resident Guidelines Curfew timings, visitor restrictions, and campus security policies_ ID: 019 Category: HOSTEL",
+      "expected_text": "Hostel Rules & Regulations Student Resident Guidelines Curfew timings, visitor restrictions, and campus security policies."
+    },
+    {
+      "image_id": "020",
+      "filename": "notice.jpg",
+      "category": "notice",
+      "accuracy_percent": 89.6,
+      "is_passed": true,
+      "original_ocr_text": "Annual Sports Day Notice\nCollege Athletic Meet 2026\nStudent registration for football, cricket, and track events\nID: 020\nCategory: NOTICE",
+      "cleaned_text": "Annual Sports Day Notice College Athletic Meet 2026 Student registration for football, cricket, and track events ID: 020 Category: NOTICE",
+      "expected_text": "Annual Sports Day Notice College Athletic Meet 2026 Student registration for football, cricket, and track events."
+    },
+    {
+      "image_id": "021",
+      "filename": "notice_placement.jpg",
+      "category": "career",
+      "accuracy_percent": 89.49,
+      "is_passed": true,
+      "original_ocr_text": "Campus Placement Drive\nTech Companies Recruitment\nJob interviews and coding tests for final year software engineers_\nID: 021\nCategory: CAREER",
+      "cleaned_text": "Campus Placement Drive Tech Companies Recruitment Job interviews and coding tests for final year software engineers_ ID: 021 Category: CAREER",
+      "expected_text": "Campus Placement Drive Tech Companies Recruitment Job interviews and coding tests for final year software engineers."
+    },
+    {
+      "image_id": "022",
+      "filename": "notice_internship.jpg",
+      "category": "career",
+      "accuracy_percent": 90.3,
+      "is_passed": true,
+      "original_ocr_text": "Summer Internship Notice\nIndustry Training Programme\nPaid internship opportunities with certificates for college students\nID: 022\nCategory: CAREER",
+      "cleaned_text": "Summer Internship Notice Industry Training Programme Paid internship opportunities with certificates for college students ID: 022 Category: CAREER",
+      "expected_text": "Summer Internship Notice Industry Training Programme Paid internship opportunities with certificates for college students."
+    },
+    {
+      "image_id": "023",
+      "filename": "application.jpg",
+      "category": "administrative",
+      "accuracy_percent": 87.06,
+      "is_passed": true,
+      "original_ocr_text": "Student ID Card Application\nDuplicate Card Reissue Form\nRequest form for lost or damaged campus identity cards.\nID: 023\nCategory: ADMINISTRATIVE",
+      "cleaned_text": "Student ID Card Application Duplicate Card Reissue Form Request form for lost or damaged campus identity cards. ID: 023 Category: ADMINISTRATIVE",
+      "expected_text": "Student ID Card Application Duplicate Card Reissue Form Request form for lost or damaged campus identity cards."
+    },
+    {
+      "image_id": "024",
+      "filename": "registration.jpg",
+      "category": "administrative",
+      "accuracy_percent": 87.91,
+      "is_passed": true,
+      "original_ocr_text": "Course Registration Portal\nSemester Enrollment Guide\nStep by step procedure to select elective and core subjects online.\nID: 024\nCategory: ADMINISTRATIVE",
+      "cleaned_text": "Course Registration Portal Semester Enrollment Guide Step by step procedure to select elective and core subjects online. ID: 024 Category: ADMINISTRATIVE",
+      "expected_text": "Course Registration Portal Semester Enrollment Guide Step by step procedure to select elective and core subjects online."
+    },
+    {
+      "image_id": "025",
+      "filename": "bonafide_certificate.jpg",
+      "category": "administrative",
+      "accuracy_percent": 86.89,
+      "is_passed": true,
+      "original_ocr_text": "Bonafide Certificate Form\nOfficial Student Proof\nDocument verifying active enrollment for passport, visa\nor bus pass\nID: 025\nCategory: ADMINISTRATIVE",
+      "cleaned_text": "Bonafide Certificate Form Official Student Proof Document verifying active enrollment for passport, visa or bus pass ID: 025 Category: ADMINISTRATIVE",
+      "expected_text": "Bonafide Certificate Form Official Student Proof Document verifying active enrollment for passport, visa, or bus pass."
+    },
+    {
+      "image_id": "026",
+      "filename": "scholarship_girl_child.jpg",
+      "category": "scholarship",
+      "accuracy_percent": 90.38,
+      "is_passed": true,
+      "original_ocr_text": "Pragati Scholarship for Girls\nTechnical Education Support\nFinancial assistance and tuition fee reimbursement for female engineering students.\nID: 026\nCategory: SCHOLARSHIP",
+      "cleaned_text": "Pragati Scholarship for Girls Technical Education Support Financial assistance and tuition fee reimbursement for female engineering students. ID: 026 Category: SCHOLARSHIP",
+      "expected_text": "Pragati Scholarship for Girls Technical Education Support Financial assistance and tuition fee reimbursement for female engineering students."
+    },
+    {
+      "image_id": "027",
+      "filename": "scholarship_merit_cum_means.jpg",
+      "category": "scholarship",
+      "accuracy_percent": 89.86,
+      "is_passed": true,
+      "original_ocr_text": "Merit Cum Means Scholarship\nEconomically Weaker Section\nCollege fee waiver and educational grant for students with low family income.\nID: 027\nCategory: SCHOLARSHIP",
+      "cleaned_text": "Merit Cum Means Scholarship Economically Weaker Section College fee waiver and educational grant for students with low family income. ID: 027 Category: SCHOLARSHIP",
+      "expected_text": "Merit Cum Means Scholarship Economically Weaker Section College fee waiver and educational grant for students with low family income."
+    },
+    {
+      "image_id": "028",
+      "filename": "admission_mba.jpg",
+      "category": "admission",
+      "accuracy_percent": 90.54,
+      "is_passed": true,
+      "original_ocr_text": "MBA Management Admission\nGroup Discussion & PI Schedule\nAdmission criteria and interview rounds for master of business administration.\nID: 028\nCategory: ADMISSION",
+      "cleaned_text": "MBA Management Admission Group Discussion & PI Schedule Admission criteria and interview rounds for master of business administration. ID: 028 Category: ADMISSION",
+      "expected_text": "MBA Management Admission Group Discussion & PI Schedule Admission criteria and interview rounds for master of business administration."
+    },
+    {
+      "image_id": "029",
+      "filename": "admission_mca.jpg",
+      "category": "admission",
+      "accuracy_percent": 90.13,
+      "is_passed": true,
+      "original_ocr_text": "MCA Admission Notice\nComputer Applications Eligibility\nPostgraduate admissions for software development and computer application programs_\nID: 029\nCategory: ADMISSION",
+      "cleaned_text": "MCA Admission Notice Computer Applications Eligibility Postgraduate admissions for software development and computer application programs_ ID: 029 Category: ADMISSION",
+      "expected_text": "MCA Admission Notice Computer Applications Eligibility Postgraduate admissions for software development and computer application programs."
+    },
+    {
+      "image_id": "030",
+      "filename": "admission_cancellation.jpg",
+      "category": "admission",
+      "accuracy_percent": 90.37,
+      "is_passed": true,
+      "original_ocr_text": "Admission Cancellation & Refund\nFee Refund Policy 2026\nProcedure to withdraw admission and claim tuition fee refund before session start\nID: 030\nCategory: ADMISSION",
+      "cleaned_text": "Admission Cancellation & Refund Fee Refund Policy 2026 Procedure to withdraw admission and claim tuition fee refund before session start ID: 030 Category: ADMISSION",
+      "expected_text": "Admission Cancellation & Refund Fee Refund Policy 2026 Procedure to withdraw admission and claim tuition fee refund before session start."
+    },
+    {
+      "image_id": "031",
+      "filename": "fees_bus_transport.jpg",
+      "category": "finance",
+      "accuracy_percent": 90.3,
+      "is_passed": true,
+      "original_ocr_text": "Campus Bus Transport Fees\nRoute & Pass Registration\nSemester transport fee payment and bus route pass collection details.\nID: 031\nCategory: FINANCE",
+      "cleaned_text": "Campus Bus Transport Fees Route & Pass Registration Semester transport fee payment and bus route pass collection details. ID: 031 Category: FINANCE",
+      "expected_text": "Campus Bus Transport Fees Route & Pass Registration Semester transport fee payment and bus route pass collection details."
+    },
+    {
+      "image_id": "032",
+      "filename": "fees_late_penalty.jpg",
+      "category": "finance",
+      "accuracy_percent": 89.47,
+      "is_passed": true,
+      "original_ocr_text": "Late Fee Payment Notice\nAccounts Department\nPenalty charges applicable after due date for pending semester tuition fees_\nID: 032\nCategory: FINANCE",
+      "cleaned_text": "Late Fee Payment Notice Accounts Department Penalty charges applicable after due date for pending semester tuition fees_ ID: 032 Category: FINANCE",
+      "expected_text": "Late Fee Payment Notice Accounts Department Penalty charges applicable after due date for pending semester tuition fees."
+    },
+    {
+      "image_id": "033",
+      "filename": "fees_challan.jpg",
+      "category": "finance",
+      "accuracy_percent": 89.84,
+      "is_passed": true,
+      "original_ocr_text": "Bank Fee Payment Challan\nOffline Deposit Voucher\nCash deposit instructions at campus bank branch for academic fees.\nID: 033\nCategory: FINANCE",
+      "cleaned_text": "Bank Fee Payment Challan Offline Deposit Voucher Cash deposit instructions at campus bank branch for academic fees. ID: 033 Category: FINANCE",
+      "expected_text": "Bank Fee Payment Challan Offline Deposit Voucher Cash deposit instructions at campus bank branch for academic fees."
+    },
+    {
+      "image_id": "034",
+      "filename": "exam_revaluation.jpg",
+      "category": "examination",
+      "accuracy_percent": 89.49,
+      "is_passed": true,
+      "original_ocr_text": "Answer Sheet Re-evaluation\nRechecking & Photocopy Notice\nApplication form and fee per subject for grade rechecking and marks recount\nID: 034\nCategory: EXAMINATION",
+      "cleaned_text": "Answer Sheet Re-evaluation Rechecking & Photocopy Notice Application form and fee per subject for grade rechecking and marks recount ID: 034 Category: EXAMINATION",
+      "expected_text": "Answer Sheet Re-evaluation Rechecking & Photocopy Notice Application form and fee per subject for grade rechecking and marks recount."
+    },
+    {
+      "image_id": "035",
+      "filename": "exam_supplementary.jpg",
+      "category": "examination",
+      "accuracy_percent": 90.2,
+      "is_passed": true,
+      "original_ocr_text": "Supplementary Backlog Exam\nSpecial Remedial Examination\nRegistration form and exam dates for students clearing previous semester backlogs.\nID: 035\nCategory: EXAMINATION",
+      "cleaned_text": "Supplementary Backlog Exam Special Remedial Examination Registration form and exam dates for students clearing previous semester backlogs. ID: 035 Category: EXAMINATION",
+      "expected_text": "Supplementary Backlog Exam Special Remedial Examination Registration form and exam dates for students clearing previous semester backlogs."
+    },
+    {
+      "image_id": "036",
+      "filename": "exam_practical_viva.jpg",
+      "category": "examination",
+      "accuracy_percent": 88.19,
+      "is_passed": true,
+      "original_ocr_text": "Practical Lab Exam Schedule\nExternal Viva Voce Timetable\nSchedule for physics, chemistry, coding labs_\nand project presentations_\nID: 036\nCategory: EXAMINATION",
+      "cleaned_text": "Practical Lab Exam Schedule External Viva Voce Timetable Schedule for physics, chemistry, coding labs_ and project presentations_ ID: 036 Category: EXAMINATION",
+      "expected_text": "Practical Lab Exam Schedule External Viva Voce Timetable Schedule for physics, chemistry, coding labs, and project presentations."
+    },
+    {
+      "image_id": "037",
+      "filename": "library_digital_access.jpg",
+      "category": "library",
+      "accuracy_percent": 90.48,
+      "is_passed": true,
+      "original_ocr_text": "IEEE Digital Library Access\nE-Journal & Research Database\nLogin credentials and remote proxy access for international research papers_\nID: 037\nCategory: LIBRARY",
+      "cleaned_text": "IEEE Digital Library Access E-Journal & Research Database Login credentials and remote proxy access for international research papers_ ID: 037 Category: LIBRARY",
+      "expected_text": "IEEE Digital Library Access E-Journal & Research Database Login credentials and remote proxy access for international research papers."
+    },
+    {
+      "image_id": "038",
+      "filename": "library_thesis_submission.jpg",
+      "category": "library",
+      "accuracy_percent": 91.5,
+      "is_passed": true,
+      "original_ocr_text": "Thesis Hard Bound Submission\nLibrary Repository Archive\nGuidelines for submitting final bound research dissertations and plagiarism reports.\nID: 038\nCategory: LIBRARY",
+      "cleaned_text": "Thesis Hard Bound Submission Library Repository Archive Guidelines for submitting final bound research dissertations and plagiarism reports. ID: 038 Category: LIBRARY",
+      "expected_text": "Thesis Hard Bound Submission Library Repository Archive Guidelines for submitting final bound research dissertations and plagiarism reports."
+    },
+    {
+      "image_id": "039",
+      "filename": "library_lost_book.jpg",
+      "category": "library",
+      "accuracy_percent": 90.71,
+      "is_passed": true,
+      "original_ocr_text": "Lost Library Book Policy\nReplacement & Recovery Fine\nProcedure to replace missing catalog books or pay double procurement cost.\nID: 039\nCategory: LIBRARY",
+      "cleaned_text": "Lost Library Book Policy Replacement & Recovery Fine Procedure to replace missing catalog books or pay double procurement cost. ID: 039 Category: LIBRARY",
+      "expected_text": "Lost Library Book Policy Replacement & Recovery Fine Procedure to replace missing catalog books or pay double procurement cost."
+    },
+    {
+      "image_id": "040",
+      "filename": "hostel_mess_menu.jpg",
+      "category": "hostel",
+      "accuracy_percent": 89.84,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Mess Food Menu\nWeekly Dining Schedule\nNutritious vegetarian and non-vegetarian food schedule in dining halls\nID: 040\nCategory: HOSTEL",
+      "cleaned_text": "Hostel Mess Food Menu Weekly Dining Schedule Nutritious vegetarian and non-vegetarian food schedule in dining halls ID: 040 Category: HOSTEL",
+      "expected_text": "Hostel Mess Food Menu Weekly Dining Schedule Nutritious vegetarian and non-vegetarian food schedule in dining halls."
+    },
+    {
+      "image_id": "041",
+      "filename": "hostel_night_out_pass.jpg",
+      "category": "hostel",
+      "accuracy_percent": 89.58,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Night Out Pass\nParent Permission & Gate Pass\neave application protocol for students visiting home on weekends\nID: 041\nCategory: HOSTEL",
+      "cleaned_text": "Hostel Night Out Pass Parent Permission & Gate Pass eave application protocol for students visiting home on weekends ID: 041 Category: HOSTEL",
+      "expected_text": "Hostel Night Out Pass Parent Permission & Gate Pass Leave application protocol for students visiting home on weekends."
+    },
+    {
+      "image_id": "042",
+      "filename": "hostel_warden_contact.jpg",
+      "category": "hostel",
+      "accuracy_percent": 89.84,
+      "is_passed": true,
+      "original_ocr_text": "Hostel Warden Directory\nEmergency Campus Contacts\nPhone numbers and office hours of chief wardens and medical staff\nID: 042\nCategory: HOSTEL",
+      "cleaned_text": "Hostel Warden Directory Emergency Campus Contacts Phone numbers and office hours of chief wardens and medical staff ID: 042 Category: HOSTEL",
+      "expected_text": "Hostel Warden Directory Emergency Campus Contacts Phone numbers and office hours of chief wardens and medical staff."
+    },
+    {
+      "image_id": "043",
+      "filename": "placement_mock_interview.jpg",
+      "category": "career",
+      "accuracy_percent": 89.41,
+      "is_passed": true,
+      "original_ocr_text": "Mock Technical Interview\nCareer Development Cell\nOne on one\nguidance and coding interview prep with alumni mentors_\nID: 043\nCategory: CAREER",
+      "cleaned_text": "Mock Technical Interview Career Development Cell One on one guidance and coding interview prep with alumni mentors_ ID: 043 Category: CAREER",
+      "expected_text": "Mock Technical Interview Career Development Cell One on one guidance and coding interview prep with alumni mentors."
+    },
+    {
+      "image_id": "044",
+      "filename": "placement_shortlist.jpg",
+      "category": "career",
+      "accuracy_percent": 90.97,
+      "is_passed": true,
+      "original_ocr_text": "Campus Placement Shortlist\nSoftware Engineer Selects\nList of selected students offered software developer roles and package details\nID: 044\nCategory: CAREER",
+      "cleaned_text": "Campus Placement Shortlist Software Engineer Selects List of selected students offered software developer roles and package details ID: 044 Category: CAREER",
+      "expected_text": "Campus Placement Shortlist Software Engineer Selects List of selected students offered software developer roles and package details."
+    },
+    {
+      "image_id": "045",
+      "filename": "placement_internship_stipend.jpg",
+      "category": "career",
+      "accuracy_percent": 90.77,
+      "is_passed": true,
+      "original_ocr_text": "Google Summer Internship\nPre-Placement Offer Track\nSoftware engineering stipend and project tracks for third year students.\nID: 045\nCategory: CAREER",
+      "cleaned_text": "Google Summer Internship Pre-Placement Offer Track Software engineering stipend and project tracks for third year students. ID: 045 Category: CAREER",
+      "expected_text": "Google Summer Internship Pre-Placement Offer Track Software engineering stipend and project tracks for third year students."
+    },
+    {
+      "image_id": "046",
+      "filename": "sports_cricket_tournament.jpg",
+      "category": "sports",
+      "accuracy_percent": 87.18,
+      "is_passed": true,
+      "original_ocr_text": "Inter-College Cricket\nAnnual Sports League 2026\nCricket team selection trials, match fixtures, and stadium ground rules:\nID: 046\nCategory: SPORTS\nCup",
+      "cleaned_text": "Inter-College Cricket Annual Sports League 2026 Cricket team selection trials, match fixtures, and stadium ground rules: ID: 046 Category: SPORTS Cup",
+      "expected_text": "Inter-College Cricket Cup Annual Sports League 2026 Cricket team selection trials, match fixtures, and stadium ground rules."
+    },
+    {
+      "image_id": "047",
+      "filename": "sports_badminton_trials.jpg",
+      "category": "sports",
+      "accuracy_percent": 90.91,
+      "is_passed": true,
+      "original_ocr_text": "Badminton Championship Trials\nSingles and Doubles Squad\nSelection trials for university sports squad at the indoor badminton court\nID: 047\nCategory: SPORTS",
+      "cleaned_text": "Badminton Championship Trials Singles and Doubles Squad Selection trials for university sports squad at the indoor badminton court ID: 047 Category: SPORTS",
+      "expected_text": "Badminton Championship Trials Singles and Doubles Squad Selection trials for university sports squad at the indoor badminton court."
+    },
+    {
+      "image_id": "048",
+      "filename": "sports_gym_rules.jpg",
+      "category": "sports",
+      "accuracy_percent": 90.71,
+      "is_passed": true,
+      "original_ocr_text": "Campus Gymnasium Timings\nFitness Center Guidelines\nWorkout slots for boys and girls with certified physical trainer supervision\nID: 048\nCategory: SPORTS",
+      "cleaned_text": "Campus Gymnasium Timings Fitness Center Guidelines Workout slots for boys and girls with certified physical trainer supervision ID: 048 Category: SPORTS",
+      "expected_text": "Campus Gymnasium Timings Fitness Center Guidelines Workout slots for boys and girls with certified physical trainer supervision."
+    },
+    {
+      "image_id": "049",
+      "filename": "workshop_ai_bootcamp.jpg",
+      "category": "workshop",
+      "accuracy_percent": 89.22,
+      "is_passed": true,
+      "original_ocr_text": "Al & Machine Learning Workshop\n3-Day Hands-on Bootcamp\nDeep learning, PyTorch, and NLP models practical training session.\nID: 049\nCategory: WORKSHOP",
+      "cleaned_text": "Al & Machine Learning Workshop 3-Day Hands-on Bootcamp Deep learning, PyTorch, and NLP models practical training session. ID: 049 Category: WORKSHOP",
+      "expected_text": "AI & Machine Learning Workshop 3-Day Hands-on Bootcamp Deep learning, PyTorch, and NLP models practical training session."
+    },
+    {
+      "image_id": "050",
+      "filename": "workshop_cloud_computing.jpg",
+      "category": "workshop",
+      "accuracy_percent": 90.41,
+      "is_passed": true,
+      "original_ocr_text": "AWS Cloud Computing Seminar\nDevOps & Cloud Architecture\nCertified training on serverless architecture and cloud container deployment\nID: 050\nCategory: WORKSHOP",
+      "cleaned_text": "AWS Cloud Computing Seminar DevOps & Cloud Architecture Certified training on serverless architecture and cloud container deployment ID: 050 Category: WORKSHOP",
+      "expected_text": "AWS Cloud Computing Seminar DevOps & Cloud Architecture Certified training on serverless architecture and cloud container deployment."
+    },
+    {
+      "image_id": "051",
+      "filename": "workshop_robotics.jpg",
+      "category": "workshop",
+      "accuracy_percent": 87.6,
+      "is_passed": true,
+      "original_ocr_text": "Robotics & loT Hackathon\nHardware Design Challenge\nBuild autonomous robots and loT sensor networks with team prizes\nID: 051\nCategory: WORKSHOP",
+      "cleaned_text": "Robotics & loT Hackathon Hardware Design Challenge Build autonomous robots and loT sensor networks with team prizes ID: 051 Category: WORKSHOP",
+      "expected_text": "Robotics & IoT Hackathon Hardware Design Challenge Build autonomous robots and IoT sensor networks with team prizes."
+    },
+    {
+      "image_id": "052",
+      "filename": "cultural_fest_euphoria.jpg",
+      "category": "cultural",
+      "accuracy_percent": 89.44,
+      "is_passed": true,
+      "original_ocr_text": "Euphoria Annual Cultural Fest\nCollege Celebrations 2026\nDance competitions, musical concerts, fashion shows\nand celebrity night:\nID: 052\nCategory: CULTURAL",
+      "cleaned_text": "Euphoria Annual Cultural Fest College Celebrations 2026 Dance competitions, musical concerts, fashion shows and celebrity night: ID: 052 Category: CULTURAL",
+      "expected_text": "Euphoria Annual Cultural Fest College Celebrations 2026 Dance competitions, musical concerts, fashion shows, and celebrity night."
+    },
+    {
+      "image_id": "053",
+      "filename": "cultural_music_auditions.jpg",
+      "category": "cultural",
+      "accuracy_percent": 89.36,
+      "is_passed": true,
+      "original_ocr_text": "College Music Band Auditions\nVocalists & Instrumentalists\nRock band auditions for guitarists_\ndrummers, and classical vocalists\nID: 053\nCategory: CULTURAL",
+      "cleaned_text": "College Music Band Auditions Vocalists & Instrumentalists Rock band auditions for guitarists_ drummers, and classical vocalists ID: 053 Category: CULTURAL",
+      "expected_text": "College Music Band Auditions Vocalists & Instrumentalists Rock band auditions for guitarists, drummers, and classical vocalists."
+    },
+    {
+      "image_id": "054",
+      "filename": "cultural_drama_play.jpg",
+      "category": "cultural",
+      "accuracy_percent": 87.11,
+      "is_passed": true,
+      "original_ocr_text": "Inter-Department Drama\nStage Theater Competition\nStage acting competition and script submissions for university theater club.\nID: 054\nCategory: CULTURAL\nPlay",
+      "cleaned_text": "Inter-Department Drama Stage Theater Competition Stage acting competition and script submissions for university theater club. ID: 054 Category: CULTURAL Play",
+      "expected_text": "Inter-Department Drama Play Stage Theater Competition Stage acting competition and script submissions for university theater club."
+    },
+    {
+      "image_id": "055",
+      "filename": "notice_holiday_calendar.jpg",
+      "category": "notice",
+      "accuracy_percent": 90.18,
+      "is_passed": true,
+      "original_ocr_text": "University Holiday Calendar\nAcademic Year 2026\nList of official public holidays, festive breaks, and semester vacation dates_\nID: 055\nCategory: NOTICE",
+      "cleaned_text": "University Holiday Calendar Academic Year 2026 List of official public holidays, festive breaks, and semester vacation dates_ ID: 055 Category: NOTICE",
+      "expected_text": "University Holiday Calendar Academic Year 2026 List of official public holidays, festive breaks, and semester vacation dates."
+    },
+    {
+      "image_id": "056",
+      "filename": "notice_cleanliness_drive.jpg",
+      "category": "notice",
+      "accuracy_percent": 90.27,
+      "is_passed": true,
+      "original_ocr_text": "Campus Cleanliness Drive\nNSS Student Volunteer Club\nTree plantation and campus green environment awareness campaign.\nID: 056\nCategory: NOTICE",
+      "cleaned_text": "Campus Cleanliness Drive NSS Student Volunteer Club Tree plantation and campus green environment awareness campaign. ID: 056 Category: NOTICE",
+      "expected_text": "Campus Cleanliness Drive NSS Student Volunteer Club Tree plantation and campus green environment awareness campaign."
+    }
+  ]
+}

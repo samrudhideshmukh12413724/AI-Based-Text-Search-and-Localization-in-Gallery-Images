@@ -1,0 +1,224 @@
+{
+  "seed": 42,
+  "splits": {
+    "dev": {
+      "SYNTHETIC_ID": [
+        "doc_synth_id_17.jpg",
+        "doc_synth_id_13.jpg",
+        "doc_synth_id_10.jpg",
+        "doc_synth_id_20.jpg",
+        "doc_synth_id_19.jpg",
+        "doc_synth_id_07.jpg",
+        "doc_synth_id_06.jpg",
+        "doc_synth_id_11.jpg",
+        "doc_synth_id_16.jpg",
+        "doc_synth_id_22.jpg",
+        "doc_synth_id_12.jpg",
+        "doc_synth_id_18.jpg",
+        "doc_synth_id_02.jpg",
+        "doc_synth_id_15.jpg",
+        "doc_synth_id_23.jpg",
+        "doc_synth_id_14.jpg",
+        "doc_synth_id_03.jpg",
+        "doc_synth_id_24.jpg",
+        "doc_synth_id_05.jpg"
+      ],
+      "HANDWRITTEN": [
+        "doc_handwritten_03.jpg",
+        "doc_handwritten_13.jpg",
+        "doc_handwritten_12.jpg",
+        "doc_handwritten_08.jpg",
+        "doc_handwritten_25.jpg",
+        "doc_handwritten_04.jpg",
+        "doc_handwritten_10.jpg",
+        "doc_handwritten_23.jpg",
+        "doc_handwritten_18.jpg",
+        "doc_handwritten_16.jpg",
+        "doc_handwritten_22.jpg",
+        "doc_handwritten_21.jpg",
+        "doc_handwritten_17.jpg",
+        "doc_handwritten_15.jpg",
+        "doc_handwritten_02.jpg",
+        "doc_handwritten_20.jpg",
+        "doc_handwritten_07.jpg",
+        "doc_handwritten_05.jpg",
+        "doc_handwritten_24.jpg"
+      ],
+      "SIGNATURE": [
+        "doc_exp_sign_15.jpg",
+        "doc_exp_sign_20.jpg",
+        "doc_exp_sign_06.jpg",
+        "doc_exp_sign_09.jpg",
+        "doc_exp_sign_08.jpg",
+        "doc_exp_sign_19.jpg",
+        "doc_exp_sign_16.jpg",
+        "doc_exp_sign_17.jpg",
+        "doc_exp_sign_14.jpg",
+        "doc_exp_sign_13.jpg",
+        "doc_exp_sign_02.jpg",
+        "doc_exp_sign_05.jpg",
+        "doc_exp_sign_04.jpg",
+        "doc_exp_sign_11.jpg"
+      ],
+      "STAMP": [
+        "doc_exp_stamp_10.jpg",
+        "doc_exp_stamp_15.jpg",
+        "doc_exp_stamp_12.jpg",
+        "doc_exp_stamp_14.jpg",
+        "doc_exp_stamp_02.jpg",
+        "doc_exp_stamp_01.jpg",
+        "doc_exp_stamp_13.jpg",
+        "doc_exp_stamp_17.jpg",
+        "doc_exp_stamp_04.jpg",
+        "doc_exp_stamp_19.jpg",
+        "doc_exp_stamp_11.jpg",
+        "doc_exp_stamp_05.jpg",
+        "doc_exp_stamp_20.jpg",
+        "doc_exp_stamp_16.jpg"
+      ],
+      "COMPOSITE": [
+        "doc_exp_composite_22.jpg",
+        "doc_exp_composite_29.jpg",
+        "doc_exp_composite_01.jpg",
+        "doc_exp_composite_04.jpg",
+        "doc_exp_composite_20.jpg",
+        "doc_exp_composite_26.jpg",
+        "doc_exp_composite_02.jpg",
+        "doc_exp_composite_06.jpg",
+        "doc_exp_composite_25.jpg",
+        "doc_exp_composite_24.jpg",
+        "doc_exp_composite_10.jpg",
+        "doc_exp_composite_17.jpg",
+        "doc_exp_composite_14.jpg",
+        "doc_exp_composite_18.jpg",
+        "doc_exp_composite_12.jpg",
+        "doc_exp_composite_08.jpg",
+        "doc_exp_composite_27.jpg",
+        "doc_exp_composite_30.jpg",
+        "doc_exp_composite_05.jpg",
+        "doc_exp_composite_15.jpg",
+        "doc_exp_composite_13.jpg",
+        "doc_exp_composite_16.jpg"
+      ],
+      "NEGATIVE": [
+        "doc_exp_negative_09.jpg",
+        "doc_exp_negative_01.jpg",
+        "doc_exp_negative_06.jpg",
+        "doc_exp_negative_12.jpg",
+        "doc_exp_negative_08.jpg",
+        "doc_exp_negative_05.jpg",
+        "doc_exp_negative_04.jpg",
+        "doc_exp_negative_10.jpg",
+        "doc_exp_negative_15.jpg",
+        "doc_exp_negative_07.jpg",
+        "doc_exp_negative_13.jpg"
+      ]
+    },
+    "val": {
+      "SYNTHETIC_ID": [
+        "doc_synth_id_25.jpg",
+        "doc_synth_id_08.jpg",
+        "doc_synth_id_09.jpg"
+      ],
+      "HANDWRITTEN": [
+        "doc_handwritten_11.jpg",
+        "doc_handwritten_14.jpg",
+        "doc_handwritten_06.jpg"
+      ],
+      "SIGNATURE": [
+        "doc_exp_sign_01.jpg",
+        "doc_exp_sign_03.jpg",
+        "doc_exp_sign_07.jpg"
+      ],
+      "STAMP": [
+        "doc_exp_stamp_18.jpg",
+        "doc_exp_stamp_08.jpg",
+        "doc_exp_stamp_06.jpg"
+      ],
+      "COMPOSITE": [
+        "doc_exp_composite_21.jpg",
+        "doc_exp_composite_28.jpg",
+        "doc_exp_composite_11.jpg",
+        "doc_exp_composite_23.jpg"
+      ],
+      "NEGATIVE": [
+        "doc_exp_negative_11.jpg",
+        "doc_exp_negative_03.jpg"
+      ]
+    },
+    "test": {
+      "SYNTHETIC_ID": [
+        "doc_synth_id_01.jpg",
+        "doc_synth_id_04.jpg",
+        "doc_synth_id_21.jpg"
+      ],
+      "HANDWRITTEN": [
+        "doc_handwritten_01.jpg",
+        "doc_handwritten_09.jpg",
+        "doc_handwritten_19.jpg"
+      ],
+      "SIGNATURE": [
+        "doc_exp_sign_12.jpg",
+        "doc_exp_sign_10.jpg",
+        "doc_exp_sign_18.jpg"
+      ],
+      "STAMP": [
+        "doc_exp_stamp_03.jpg",
+        "doc_exp_stamp_09.jpg",
+        "doc_exp_stamp_07.jpg"
+      ],
+      "COMPOSITE": [
+        "doc_exp_composite_19.jpg",
+        "doc_exp_composite_07.jpg",
+        "doc_exp_composite_03.jpg",
+        "doc_exp_composite_09.jpg"
+      ],
+      "NEGATIVE": [
+        "doc_exp_negative_02.jpg",
+        "doc_exp_negative_14.jpg"
+      ]
+    }
+  },
+  "stats": {
+    "SYNTHETIC_ID": {
+      "total": 25,
+      "dev_count": 19,
+      "val_count": 3,
+      "test_count": 3
+    },
+    "HANDWRITTEN": {
+      "total": 25,
+      "dev_count": 19,
+      "val_count": 3,
+      "test_count": 3
+    },
+    "SIGNATURE": {
+      "total": 20,
+      "dev_count": 14,
+      "val_count": 3,
+      "test_count": 3
+    },
+    "STAMP": {
+      "total": 20,
+      "dev_count": 14,
+      "val_count": 3,
+      "test_count": 3
+    },
+    "COMPOSITE": {
+      "total": 30,
+      "dev_count": 22,
+      "val_count": 4,
+      "test_count": 4
+    },
+    "NEGATIVE": {
+      "total": 15,
+      "dev_count": 11,
+      "val_count": 2,
+      "test_count": 2
+    },
+    "TOTAL_EXPANDED": 135,
+    "DEV_TOTAL": 99,
+    "VAL_TOTAL": 18,
+    "TEST_TOTAL": 18
+  }
+}

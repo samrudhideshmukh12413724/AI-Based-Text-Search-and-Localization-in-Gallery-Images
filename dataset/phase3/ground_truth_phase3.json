@@ -1,0 +1,346 @@
+{
+  "doc_qr_01_scholarship.jpg": {
+    "relative_path": "positive/doc_qr_01_scholarship.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 960,
+          "width": 160,
+          "height": 160
+        },
+        "data": "https://apex.edu.in/verify/scholarship/0881",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_qr_02_admit_card.jpg": {
+    "relative_path": "positive/doc_qr_02_admit_card.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 700,
+          "y": 130,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/exam/verify/hallticket/4412",
+        "location_desc": "Top-Right"
+      }
+    ]
+  },
+  "doc_qr_03_fee_receipt.jpg": {
+    "relative_path": "positive/doc_qr_03_fee_receipt.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 50,
+          "y": 960,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/finance/receipt/9011",
+        "location_desc": "Bottom-Left"
+      }
+    ]
+  },
+  "doc_qr_04_bonafide.jpg": {
+    "relative_path": "positive/doc_qr_04_bonafide.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 370,
+          "y": 920,
+          "width": 160,
+          "height": 160
+        },
+        "data": "https://apex.edu.in/cert/bonafide/2026-IT-55",
+        "location_desc": "Bottom-Center"
+      }
+    ]
+  },
+  "doc_qr_05_hostel_pass.jpg": {
+    "relative_path": "positive/doc_qr_05_hostel_pass.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 700,
+          "y": 140,
+          "width": 140,
+          "height": 140
+        },
+        "data": "https://apex.edu.in/hostel/pass/H-9921",
+        "location_desc": "Top-Right"
+      }
+    ]
+  },
+  "doc_qr_06_placement_shortlist.jpg": {
+    "relative_path": "positive/doc_qr_06_placement_shortlist.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 960,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/placement/shortlist/google/401",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_qr_07_library_card.jpg": {
+    "relative_path": "positive/doc_qr_07_library_card.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 500,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/library/member/8832",
+        "location_desc": "Center-Right"
+      }
+    ]
+  },
+  "doc_qr_08_sports_trial.jpg": {
+    "relative_path": "positive/doc_qr_08_sports_trial.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 960,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/sports/badge/82",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_qr_09_workshop_cert.jpg": {
+    "relative_path": "positive/doc_qr_09_workshop_cert.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 370,
+          "y": 930,
+          "width": 160,
+          "height": 160
+        },
+        "data": "https://apex.edu.in/verify/workshop/ai-092",
+        "location_desc": "Bottom-Center"
+      }
+    ]
+  },
+  "doc_qr_10_counseling_letter.jpg": {
+    "relative_path": "positive/doc_qr_10_counseling_letter.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 700,
+          "y": 140,
+          "width": 140,
+          "height": 140
+        },
+        "data": "https://apex.edu.in/admission/counseling/1420",
+        "location_desc": "Top-Right"
+      }
+    ]
+  },
+  "doc_neg_01_cleanliness_notice.jpg": {
+    "relative_path": "negative/doc_neg_01_cleanliness_notice.jpg",
+    "contains_qr": false,
+    "count": 0,
+    "objects": []
+  },
+  "doc_neg_02_holiday_calendar.jpg": {
+    "relative_path": "negative/doc_neg_02_holiday_calendar.jpg",
+    "contains_qr": false,
+    "count": 0,
+    "objects": []
+  },
+  "doc_neg_03_timetable.jpg": {
+    "relative_path": "negative/doc_neg_03_timetable.jpg",
+    "contains_qr": false,
+    "count": 0,
+    "objects": []
+  },
+  "doc_neg_04_gym_rules.jpg": {
+    "relative_path": "negative/doc_neg_04_gym_rules.jpg",
+    "contains_qr": false,
+    "count": 0,
+    "objects": []
+  },
+  "doc_neg_05_bus_transport.jpg": {
+    "relative_path": "negative/doc_neg_05_bus_transport.jpg",
+    "contains_qr": false,
+    "count": 0,
+    "objects": []
+  },
+  "doc_multi_01_dual_verification.jpg": {
+    "relative_path": "multi_qr/doc_multi_01_dual_verification.jpg",
+    "contains_qr": true,
+    "count": 2,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 60,
+          "y": 950,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://apex.edu.in/verify/registrar/deg-902",
+        "location_desc": "Bottom-Left"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 950,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://nad.gov.in/verify/student/sid-8812",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_multi_02_exam_fee_challan.jpg": {
+    "relative_path": "multi_qr/doc_multi_02_exam_fee_challan.jpg",
+    "contains_qr": true,
+    "count": 2,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 70,
+          "y": 940,
+          "width": 140,
+          "height": 140
+        },
+        "data": "https://bank.edu/challan/pay/B-4410",
+        "location_desc": "Bottom-Left"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 690,
+          "y": 940,
+          "width": 140,
+          "height": 140
+        },
+        "data": "https://apex.edu.in/exam/challan/verify/S-4410",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_multi_03_conference_badge.jpg": {
+    "relative_path": "multi_qr/doc_multi_03_conference_badge.jpg",
+    "contains_qr": true,
+    "count": 3,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 50,
+          "y": 950,
+          "width": 130,
+          "height": 130
+        },
+        "data": "https://summit.org/badge/keynote/771",
+        "location_desc": "Bottom-Left"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 385,
+          "y": 950,
+          "width": 130,
+          "height": 130
+        },
+        "data": "https://summit.org/badge/workshop/771",
+        "location_desc": "Bottom-Center"
+      },
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 710,
+          "y": 950,
+          "width": 130,
+          "height": 130
+        },
+        "data": "https://summit.org/badge/banquet/771",
+        "location_desc": "Bottom-Right"
+      }
+    ]
+  },
+  "doc_diff_01_small_qr.jpg": {
+    "relative_path": "difficult/doc_diff_01_small_qr.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 760,
+          "y": 1050,
+          "width": 75,
+          "height": 75
+        },
+        "data": "https://apex.edu.in/id/verify/994",
+        "location_desc": "Bottom-Right (Compact)"
+      }
+    ]
+  },
+  "doc_diff_02_low_contrast_qr.jpg": {
+    "relative_path": "difficult/doc_diff_02_low_contrast_qr.jpg",
+    "contains_qr": true,
+    "count": 1,
+    "objects": [
+      {
+        "type": "qr_code",
+        "bbox": {
+          "x": 680,
+          "y": 960,
+          "width": 150,
+          "height": 150
+        },
+        "data": "https://serb.gov.in/grant/DST-11",
+        "location_desc": "Bottom-Right (Shaded)"
+      }
+    ]
+  }
+}

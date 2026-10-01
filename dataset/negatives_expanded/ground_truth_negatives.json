@@ -1,0 +1,107 @@
+{
+  "doc_exp_negative_01.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_02.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_03.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_04.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_05.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_06.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_07.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_08.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_09.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_10.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_11.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_12.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_13.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_14.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  },
+  "doc_exp_negative_15.jpg": {
+    "query_target": "negative control",
+    "category": "NEGATIVE_CONTROL",
+    "has_visual_match": false,
+    "visual_target": null,
+    "bbox": null
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "categories": {
+    "A_exact": [
+      {
+        "query": "scholarship",
+        "expected_docs": ["scholarship.jpg", "scholarship_merit.jpg", "scholarship_fellowship.jpg", "scholarship_girl_child.jpg", "scholarship_merit_cum_means.jpg"]
+      },
+      {
+        "query": "hostel",
+        "expected_docs": ["hostel.jpg", "hostel_rules.jpg", "fees_hostel.jpg", "hostel_mess_menu.jpg", "hostel_night_out_pass.jpg", "hostel_warden_contact.jpg"]
+      },
+      {
+        "query": "admission",
+        "expected_docs": ["admission.jpg", "admission_engineering.jpg", "admission_counseling.jpg", "admission_mba.jpg", "admission_mca.jpg", "admission_cancellation.jpg"]
+      },
+      {
+        "query": "library",
+        "expected_docs": ["library.jpg", "library_books.jpg", "library_digital_access.jpg", "library_thesis_submission.jpg", "library_lost_book.jpg"]
+      },
+      {
+        "query": "cricket",
+        "expected_docs": ["sports_cricket_tournament.jpg"]
+      }
+    ],
+    "B_synonyms": [
+      {
+        "query": "financial assistance",
+        "expected_docs": ["scholarship.jpg", "scholarship_merit.jpg", "loan_education.jpg", "scholarship_girl_child.jpg", "scholarship_merit_cum_means.jpg"]
+      },
+      {
+        "query": "campus accommodation",
+        "expected_docs": ["hostel.jpg", "hostel_rules.jpg", "hostel_mess_menu.jpg", "hostel_night_out_pass.jpg", "hostel_warden_contact.jpg"]
+      },
+      {
+        "query": "student residence",
+        "expected_docs": ["hostel.jpg", "hostel_rules.jpg", "hostel_mess_menu.jpg", "hostel_night_out_pass.jpg"]
+      },
+      {
+        "query": "educational funding",
+        "expected_docs": ["scholarship.jpg", "loan_education.jpg", "scholarship_fellowship.jpg", "scholarship_merit_cum_means.jpg", "scholarship_girl_child.jpg"]
+      },
+      {
+        "query": "fitness center",
+        "expected_docs": ["sports_gym_rules.jpg"]
+      }
+    ],
+    "C_paraphrased": [
+      {
+        "query": "I need help paying for my education",
+        "expected_docs": ["scholarship.jpg", "scholarship_merit.jpg", "loan_education.jpg", "scholarship_merit_cum_means.jpg", "scholarship_girl_child.jpg"]
+      },
+      {
+        "query": "Where can students stay on campus?",
+        "expected_docs": ["hostel.jpg", "hostel_rules.jpg", "hostel_mess_menu.jpg", "hostel_warden_contact.jpg"]
+      },
+      {
+        "query": "How can I get money for college?",
+        "expected_docs": ["scholarship.jpg", "loan_education.jpg", "scholarship_merit.jpg", "scholarship_fellowship.jpg", "scholarship_merit_cum_means.jpg"]
+      },
+      {
+        "query": "guidelines for living in dorms",
+        "expected_docs": ["hostel_rules.jpg", "hostel.jpg", "hostel_mess_menu.jpg", "hostel_night_out_pass.jpg"]
+      },
+      {
+        "query": "software developer jobs on campus",
+        "expected_docs": ["notice_placement.jpg", "placement_shortlist.jpg", "placement_mock_interview.jpg", "placement_internship_stipend.jpg"]
+      }
+    ],
+    "D_natural_questions": [
+      {
+        "query": "Where can I borrow textbooks?",
+        "expected_docs": ["library.jpg", "library_books.jpg"]
+      },
+      {
+        "query": "When are semester exams?",
+        "expected_docs": ["exam.jpg", "timetable_exam.jpg", "exam_hall_ticket.jpg", "exam_practical_viva.jpg"]
+      },
+      {
+        "query": "How do I apply for college admission?",
+        "expected_docs": ["admission.jpg", "admission_engineering.jpg", "admission_counseling.jpg", "admission_mba.jpg", "admission_mca.jpg"]
+      },
+      {
+        "query": "What is the food schedule in the hostel mess?",
+        "expected_docs": ["hostel_mess_menu.jpg"]
+      },
+      {
+        "query": "How can I access IEEE research papers online?",
+        "expected_docs": ["library_digital_access.jpg"]
+      },
+      {
+        "query": "How do I replace a lost library book?",
+        "expected_docs": ["library_lost_book.jpg"]
+      },
+      {
+        "query": "What is the penalty for late fee submission?",
+        "expected_docs": ["fees_late_penalty.jpg"]
+      }
+    ],
+    "E_unrelated": [
+      {
+        "query": "Where can I find information about mango farming?",
+        "expected_docs": []
+      },
+      {
+        "query": "mango farming",
+        "expected_docs": []
+      },
+      {
+        "query": "car repair and engine oil change",
+        "expected_docs": []
+      },
+      {
+        "query": "pizza recipe with cheese and toppings",
+        "expected_docs": []
+      },
+      {
+        "query": "weather forecast for tomorrow",
+        "expected_docs": []
+      },
+      {
+        "query": "how to fix a flat bicycle tire",
+        "expected_docs": []
+      }
+    ],
+    "F_ambiguous": [
+      {
+        "query": "application",
+        "expected_docs": ["admission.jpg", "scholarship.jpg", "application.jpg", "exam_revaluation.jpg", "bonafide_certificate.jpg"]
+      },
+      {
+        "query": "fees",
+        "expected_docs": ["fees.jpg", "fees_hostel.jpg", "fees_exam.jpg", "fees_bus_transport.jpg", "fees_late_penalty.jpg", "fees_challan.jpg"]
+      },
+      {
+        "query": "notice",
+        "expected_docs": ["notice.jpg", "notice_placement.jpg", "notice_internship.jpg", "exam.jpg", "fees_late_penalty.jpg", "notice_holiday_calendar.jpg", "notice_cleanliness_drive.jpg"]
+      },
+      {
+        "query": "form",
+        "expected_docs": ["admission.jpg", "scholarship.jpg", "bonafide_certificate.jpg", "application.jpg", "hostel.jpg"]
+      }
+    ]
+  }
+}

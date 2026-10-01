@@ -1,0 +1,277 @@
+[
+  {
+    "file_name": "doc_sign_01.jpg",
+    "target_type": "signature",
+    "bbox": {
+      "x": 620,
+      "y": 920,
+      "width": 220,
+      "height": 110
+    },
+    "location": "Bottom-Right",
+    "title": "FACULTY APPOINTMENT ORDER"
+  },
+  {
+    "file_name": "doc_sign_02.jpg",
+    "target_type": "signature",
+    "bbox": {
+      "x": 600,
+      "y": 900,
+      "width": 240,
+      "height": 120
+    },
+    "location": "Bottom-Right",
+    "title": "GRADUATION CLEARANCE CERTIFICATE"
+  },
+  {
+    "file_name": "doc_sign_03.jpg",
+    "target_type": "signature",
+    "bbox": {
+      "x": 80,
+      "y": 900,
+      "width": 230,
+      "height": 110
+    },
+    "location": "Bottom-Left",
+    "title": "RESEARCH GRANT APPROVAL MEMORANDUM"
+  },
+  {
+    "file_name": "doc_sign_04.jpg",
+    "target_type": "signature",
+    "bbox": {
+      "x": 610,
+      "y": 890,
+      "width": 230,
+      "height": 115
+    },
+    "location": "Bottom-Right",
+    "title": "HOSTEL LEAVE & TRAVEL AUTHORIZATION"
+  },
+  {
+    "file_name": "doc_sign_05.jpg",
+    "target_type": "signature",
+    "bbox": {
+      "x": 600,
+      "y": 910,
+      "width": 240,
+      "height": 120
+    },
+    "location": "Bottom-Right",
+    "title": "PROVISIONAL DEGREE ENDORSEMENT"
+  },
+  {
+    "file_name": "doc_stamp_01.jpg",
+    "target_type": "stamp",
+    "bbox": {
+      "x": 80,
+      "y": 890,
+      "width": 160,
+      "height": 160
+    },
+    "location": "Bottom-Left",
+    "title": "TRANSCRIPT VERIFICATION CERTIFICATE"
+  },
+  {
+    "file_name": "doc_stamp_02.jpg",
+    "target_type": "stamp",
+    "bbox": {
+      "x": 90,
+      "y": 900,
+      "width": 155,
+      "height": 155
+    },
+    "location": "Bottom-Left",
+    "title": "NO DUES ATTESTATION CERTIFICATE"
+  },
+  {
+    "file_name": "doc_stamp_03.jpg",
+    "target_type": "stamp",
+    "bbox": {
+      "x": 85,
+      "y": 885,
+      "width": 165,
+      "height": 165
+    },
+    "location": "Bottom-Left",
+    "title": "GOVERNMENT SCHOLARSHIP APPROVAL"
+  },
+  {
+    "file_name": "doc_stamp_04.jpg",
+    "target_type": "stamp",
+    "bbox": {
+      "x": 80,
+      "y": 895,
+      "width": 160,
+      "height": 160
+    },
+    "location": "Bottom-Left",
+    "title": "LIBRARY REFERENCE CLEARANCE"
+  },
+  {
+    "file_name": "doc_stamp_05.jpg",
+    "target_type": "stamp",
+    "bbox": {
+      "x": 640,
+      "y": 890,
+      "width": 160,
+      "height": 160
+    },
+    "location": "Bottom-Right",
+    "title": "BONAFIDE STUDENT CERTIFICATE"
+  },
+  {
+    "file_name": "doc_photo_01.jpg",
+    "target_type": "photo",
+    "bbox": {
+      "x": 670,
+      "y": 150,
+      "width": 160,
+      "height": 200
+    },
+    "location": "Top-Right",
+    "title": "STUDENT SMART IDENTITY CARD"
+  },
+  {
+    "file_name": "doc_photo_02.jpg",
+    "target_type": "photo",
+    "bbox": {
+      "x": 660,
+      "y": 145,
+      "width": 165,
+      "height": 205
+    },
+    "location": "Top-Right",
+    "title": "EXAMINATION ADMIT CARD & PHOTO ID"
+  },
+  {
+    "file_name": "doc_photo_03.jpg",
+    "target_type": "photo",
+    "bbox": {
+      "x": 670,
+      "y": 150,
+      "width": 160,
+      "height": 200
+    },
+    "location": "Top-Right",
+    "title": "CAMPUS HOSTEL RESIDENT BADGE"
+  },
+  {
+    "file_name": "doc_photo_04.jpg",
+    "target_type": "photo",
+    "bbox": {
+      "x": 665,
+      "y": 150,
+      "width": 160,
+      "height": 200
+    },
+    "location": "Top-Right",
+    "title": "FACULTY RESEARCH FELLOW ID"
+  },
+  {
+    "file_name": "doc_photo_05.jpg",
+    "target_type": "photo",
+    "bbox": {
+      "x": 670,
+      "y": 150,
+      "width": 160,
+      "height": 200
+    },
+    "location": "Top-Right",
+    "title": "SPORTS COUNCIL ATHLETE PASS"
+  },
+  {
+    "file_name": "doc_qr_01.jpg",
+    "target_type": "qr_code",
+    "bbox": {
+      "x": 680,
+      "y": 920,
+      "width": 150,
+      "height": 150
+    },
+    "location": "Bottom-Right",
+    "title": "EXAMINATION HALL TICKET"
+  },
+  {
+    "file_name": "doc_qr_02.jpg",
+    "target_type": "qr_code",
+    "bbox": {
+      "x": 680,
+      "y": 915,
+      "width": 150,
+      "height": 150
+    },
+    "location": "Bottom-Right",
+    "title": "TUITION FEE RECEIPT & E-VOUCHER"
+  },
+  {
+    "file_name": "doc_qr_03.jpg",
+    "target_type": "qr_code",
+    "bbox": {
+      "x": 80,
+      "y": 920,
+      "width": 150,
+      "height": 150
+    },
+    "location": "Bottom-Left",
+    "title": "NATIONAL CONVOCATION DEGREE"
+  },
+  {
+    "file_name": "doc_qr_04.jpg",
+    "target_type": "qr_code",
+    "bbox": {
+      "x": 680,
+      "y": 910,
+      "width": 150,
+      "height": 150
+    },
+    "location": "Bottom-Right",
+    "title": "RESEARCH CONFERENCE BADGE PASS"
+  },
+  {
+    "file_name": "doc_qr_05.jpg",
+    "target_type": "qr_code",
+    "bbox": {
+      "x": 675,
+      "y": 915,
+      "width": 150,
+      "height": 150
+    },
+    "location": "Bottom-Right",
+    "title": "VEHICLE PARKING PERMIT PASS"
+  },
+  {
+    "file_name": "doc_text_01.jpg",
+    "target_type": "none",
+    "bbox": null,
+    "location": "None",
+    "title": "CAMPUS CLEANLINESS ADVISORY"
+  },
+  {
+    "file_name": "doc_text_02.jpg",
+    "target_type": "none",
+    "bbox": null,
+    "location": "None",
+    "title": "SEMESTER EXAMINATION TIMETABLE"
+  },
+  {
+    "file_name": "doc_text_03.jpg",
+    "target_type": "none",
+    "bbox": null,
+    "location": "None",
+    "title": "HOSTEL CODE OF CONDUCT & RULES"
+  },
+  {
+    "file_name": "doc_text_04.jpg",
+    "target_type": "none",
+    "bbox": null,
+    "location": "None",
+    "title": "ANNUAL CULTURAL FESTIVAL NOTICE"
+  },
+  {
+    "file_name": "doc_text_05.jpg",
+    "target_type": "none",
+    "bbox": null,
+    "location": "None",
+    "title": "CENTRAL LIBRARY REFERENCE GUIDELINES"
+  }
+]

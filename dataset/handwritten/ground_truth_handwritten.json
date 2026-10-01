@@ -1,0 +1,552 @@
+{
+  "doc_handwritten_01.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Application for Sick Leave",
+    "student": "Aarav Sharma",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_02.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Request for Exam Re-evaluation",
+    "student": "Priya Patel",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_03.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Hostel Late Night Pass",
+    "student": "Sneha Kulkarni",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_04.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Library Overdue Book Waiver",
+    "student": "Arjun Reddy",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_05.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Lab Equipment Requisition",
+    "student": "Ananya Iyer",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_06.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Project Extension Submission",
+    "student": "Kavita Nair",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_07.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Duplicate Fee Receipt Appeal",
+    "student": "Rahul Verma",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_08.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Bus Route Change Request",
+    "student": "Neha Gupta",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_09.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Sports Equipment Issue Note",
+    "student": "Aditya Joshi",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_10.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Cultural Fest Participation NoC",
+    "student": "Meera Sen",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_11.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Hostel Room Shift Request",
+    "student": "Rohan Deshpande",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_12.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Bonafide Application for Passport",
+    "student": "Tanvi Bhatia",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_13.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Elective Subject Change",
+    "student": "Vikram Rathore",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_14.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Attendance Shortage Appeal",
+    "student": "Ishaan Mukherjee",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_15.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Internship No Objection Certificate",
+    "student": "Divya Menon",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_16.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Mess Food Quality Complaint",
+    "student": "Karan Malhotra",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_17.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Gymnasium Membership Slip",
+    "student": "Pooja Hegde",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_18.jpg": {
+    "query_target": "handwritten text",
+    "subject": "ID Card Damaged Replacement",
+    "student": "Siddharth Rao",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_19.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Seminar Hall Booking Form",
+    "student": "Aniket Shinde",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_20.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Scholarship Cheque Endorsement",
+    "student": "Ritu Singhania",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_21.jpg": {
+    "query_target": "handwritten text",
+    "subject": "WiFi Login Reset Request",
+    "student": "Varun Chawla",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_22.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Medical Emergency Leave",
+    "student": "Deepika Das",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_23.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Industrial Visit Exemption",
+    "student": "Manish Tiwari",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_24.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Hostel Caution Deposit Refund",
+    "student": "Shreya Pillai",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  },
+  "doc_handwritten_25.jpg": {
+    "query_target": "handwritten text",
+    "subject": "Transcript Request Letter",
+    "student": "Gaurav Choudhury",
+    "category": "HANDWRITTEN",
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Handwritten Text Body",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 120,
+      "y": 360,
+      "width": 720,
+      "height": 405
+    },
+    "normalized_bbox": {
+      "x": 0.1333,
+      "y": 0.3,
+      "width": 0.8,
+      "height": 0.3375
+    }
+  }
+}

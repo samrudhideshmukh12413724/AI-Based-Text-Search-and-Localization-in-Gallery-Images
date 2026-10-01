@@ -1,0 +1,552 @@
+{
+  "doc_synth_id_01.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Aarav Sharma",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 90,
+      "y": 520,
+      "width": 720,
+      "height": 420
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.4333,
+      "width": 0.8,
+      "height": 0.35
+    }
+  },
+  "doc_synth_id_02.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Priya Patel",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Middle-Left",
+    "bbox": {
+      "x": 60,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.0667,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_03.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Sneha Kulkarni",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Middle-Right",
+    "bbox": {
+      "x": 160,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.1778,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_04.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Arjun Reddy",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Top-Center",
+    "bbox": {
+      "x": 140,
+      "y": 320,
+      "width": 620,
+      "height": 360
+    },
+    "normalized_bbox": {
+      "x": 0.1556,
+      "y": 0.2667,
+      "width": 0.6889,
+      "height": 0.3
+    }
+  },
+  "doc_synth_id_05.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Ananya Iyer",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 90,
+      "y": 340,
+      "width": 720,
+      "height": 400
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.2833,
+      "width": 0.8,
+      "height": 0.3333
+    }
+  },
+  "doc_synth_id_06.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Kavita Nair",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 90,
+      "y": 520,
+      "width": 720,
+      "height": 420
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.4333,
+      "width": 0.8,
+      "height": 0.35
+    }
+  },
+  "doc_synth_id_07.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Rahul Verma",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Middle-Left",
+    "bbox": {
+      "x": 60,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.0667,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_08.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Neha Gupta",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Middle-Right",
+    "bbox": {
+      "x": 160,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.1778,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_09.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Aditya Joshi",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Top-Center",
+    "bbox": {
+      "x": 140,
+      "y": 320,
+      "width": 620,
+      "height": 360
+    },
+    "normalized_bbox": {
+      "x": 0.1556,
+      "y": 0.2667,
+      "width": 0.6889,
+      "height": 0.3
+    }
+  },
+  "doc_synth_id_10.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Meera Sen",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 90,
+      "y": 340,
+      "width": 720,
+      "height": 400
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.2833,
+      "width": 0.8,
+      "height": 0.3333
+    }
+  },
+  "doc_synth_id_11.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Rohan Deshpande",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 90,
+      "y": 520,
+      "width": 720,
+      "height": 420
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.4333,
+      "width": 0.8,
+      "height": 0.35
+    }
+  },
+  "doc_synth_id_12.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Tanvi Bhatia",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Middle-Left",
+    "bbox": {
+      "x": 60,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.0667,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_13.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Vikram Rathore",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Middle-Right",
+    "bbox": {
+      "x": 160,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.1778,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_14.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Ishaan Mukherjee",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Top-Center",
+    "bbox": {
+      "x": 140,
+      "y": 320,
+      "width": 620,
+      "height": 360
+    },
+    "normalized_bbox": {
+      "x": 0.1556,
+      "y": 0.2667,
+      "width": 0.6889,
+      "height": 0.3
+    }
+  },
+  "doc_synth_id_15.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Divya Menon",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 90,
+      "y": 340,
+      "width": 720,
+      "height": 400
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.2833,
+      "width": 0.8,
+      "height": 0.3333
+    }
+  },
+  "doc_synth_id_16.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Karan Malhotra",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 90,
+      "y": 520,
+      "width": 720,
+      "height": 420
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.4333,
+      "width": 0.8,
+      "height": 0.35
+    }
+  },
+  "doc_synth_id_17.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Pooja Hegde",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Middle-Left",
+    "bbox": {
+      "x": 60,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.0667,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_18.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Siddharth Rao",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Middle-Right",
+    "bbox": {
+      "x": 160,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.1778,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_19.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Aniket Shinde",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Top-Center",
+    "bbox": {
+      "x": 140,
+      "y": 320,
+      "width": 620,
+      "height": 360
+    },
+    "normalized_bbox": {
+      "x": 0.1556,
+      "y": 0.2667,
+      "width": 0.6889,
+      "height": 0.3
+    }
+  },
+  "doc_synth_id_20.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Ritu Singhania",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 90,
+      "y": 340,
+      "width": 720,
+      "height": 400
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.2833,
+      "width": 0.8,
+      "height": 0.3333
+    }
+  },
+  "doc_synth_id_21.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Varun Chawla",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Bottom-Center",
+    "bbox": {
+      "x": 90,
+      "y": 520,
+      "width": 720,
+      "height": 420
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.4333,
+      "width": 0.8,
+      "height": 0.35
+    }
+  },
+  "doc_synth_id_22.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Deepika Das",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Middle-Left",
+    "bbox": {
+      "x": 60,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.0667,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_23.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Manish Tiwari",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Middle-Right",
+    "bbox": {
+      "x": 160,
+      "y": 360,
+      "width": 680,
+      "height": 390
+    },
+    "normalized_bbox": {
+      "x": 0.1778,
+      "y": 0.3,
+      "width": 0.7556,
+      "height": 0.325
+    }
+  },
+  "doc_synth_id_24.jpg": {
+    "query_target": "Student ID Card",
+    "profile_name": "Shreya Pillai",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": false,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "location_desc": "Top-Center",
+    "bbox": {
+      "x": 140,
+      "y": 320,
+      "width": 620,
+      "height": 360
+    },
+    "normalized_bbox": {
+      "x": 0.1556,
+      "y": 0.2667,
+      "width": 0.6889,
+      "height": 0.3
+    }
+  },
+  "doc_synth_id_25.jpg": {
+    "query_target": "Aadhaar",
+    "profile_name": "Gaurav Choudhury",
+    "category": "SYNTHETIC_ID",
+    "is_aadhaar_type": true,
+    "has_text_match": true,
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "location_desc": "Center",
+    "bbox": {
+      "x": 90,
+      "y": 340,
+      "width": 720,
+      "height": 400
+    },
+    "normalized_bbox": {
+      "x": 0.1,
+      "y": 0.2833,
+      "width": 0.8,
+      "height": 0.3333
+    }
+  }
+}

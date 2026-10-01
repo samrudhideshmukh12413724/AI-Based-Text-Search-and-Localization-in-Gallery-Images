@@ -1,0 +1,184 @@
+{
+  "benchmark_name": "Unified Multimodal Benchmark across 5 Balanced Pillars",
+  "version": "4.0.0",
+  "modalities": {
+    "text_only": [
+      {
+        "query_id": "T01",
+        "query": "scholarship",
+        "target_type": "text",
+        "expected_keywords": ["scholarship", "financial", "merit"],
+        "expected_docs": ["scholarship.jpg", "scholarship_merit.jpg", "scholarship_fellowship.jpg"]
+      },
+      {
+        "query_id": "T02",
+        "query": "central library membership",
+        "target_type": "text",
+        "expected_keywords": ["library", "membership", "books"],
+        "expected_docs": ["library.jpg", "library_books.jpg"]
+      },
+      {
+        "query_id": "T03",
+        "query": "hostel room allocation",
+        "target_type": "text",
+        "expected_keywords": ["hostel", "room", "dormitory"],
+        "expected_docs": ["hostel.jpg", "hostel_rules.jpg"]
+      },
+      {
+        "query_id": "T04",
+        "query": "examination datesheet schedule",
+        "target_type": "text",
+        "expected_keywords": ["exam", "datesheet", "timetable"],
+        "expected_docs": ["timetable_exam.jpg", "exam_schedule.jpg", "exam_hall_ticket.jpg"]
+      },
+      {
+        "query_id": "T05",
+        "query": "sports cricket tournament",
+        "target_type": "text",
+        "expected_keywords": ["cricket", "tournament", "sports"],
+        "expected_docs": ["sports_cricket_tournament.jpg"]
+      }
+    ],
+    "visual_only": [
+      {
+        "query_id": "V01",
+        "query": "signature",
+        "target_type": "visual",
+        "expected_visual_object": "signature",
+        "expected_category": "SIGNATURE"
+      },
+      {
+        "query_id": "V02",
+        "query": "official circular stamp seal",
+        "target_type": "visual",
+        "expected_visual_object": "stamp",
+        "expected_category": "STAMP"
+      },
+      {
+        "query_id": "V03",
+        "query": "QR code",
+        "target_type": "visual",
+        "expected_visual_object": "QR",
+        "expected_category": "QR"
+      },
+      {
+        "query_id": "V04",
+        "query": "cat",
+        "target_type": "visual",
+        "expected_visual_object": "cat",
+        "expected_category": "GENERAL_ANIMAL"
+      },
+      {
+        "query_id": "V05",
+        "query": "dog",
+        "target_type": "visual",
+        "expected_visual_object": "dog",
+        "expected_category": "GENERAL_ANIMAL"
+      },
+      {
+        "query_id": "V06",
+        "query": "car",
+        "target_type": "visual",
+        "expected_visual_object": "car",
+        "expected_category": "GENERAL_VEHICLE"
+      },
+      {
+        "query_id": "V07",
+        "query": "bicycle",
+        "target_type": "visual",
+        "expected_visual_object": "bicycle",
+        "expected_category": "GENERAL_VEHICLE"
+      },
+      {
+        "query_id": "V08",
+        "query": "laptop",
+        "target_type": "visual",
+        "expected_visual_object": "laptop",
+        "expected_category": "GENERAL_DEVICE"
+      },
+      {
+        "query_id": "V09",
+        "query": "smartphone",
+        "target_type": "visual",
+        "expected_visual_object": "phone",
+        "expected_category": "GENERAL_DEVICE"
+      },
+      {
+        "query_id": "V10",
+        "query": "coffee mug",
+        "target_type": "visual",
+        "expected_visual_object": "coffee",
+        "expected_category": "GENERAL_OBJECT"
+      },
+      {
+        "query_id": "V11",
+        "query": "mountain landscape",
+        "target_type": "visual",
+        "expected_visual_object": "mountain",
+        "expected_category": "GENERAL_SCENERY"
+      }
+    ],
+    "multimodal": [
+      {
+        "query_id": "M01",
+        "query": "Aadhaar",
+        "target_type": "multimodal",
+        "expected_keywords": ["aadhaar", "card"],
+        "expected_visual_object": "ID Card / Visual Region",
+        "requires_dual_evidence": true
+      },
+      {
+        "query_id": "M02",
+        "query": "student identity card",
+        "target_type": "multimodal",
+        "expected_keywords": ["student", "identity", "card"],
+        "expected_visual_object": "Student ID / Photo",
+        "requires_dual_evidence": true
+      },
+      {
+        "query_id": "M03",
+        "query": "Samrudhi Deshmukh",
+        "target_type": "multimodal",
+        "expected_keywords": ["samrudhi", "deshmukh"],
+        "expected_visual_object": "ID Card / Visual Region",
+        "requires_dual_evidence": true
+      },
+      {
+        "query_id": "M04",
+        "query": "STOP sign",
+        "target_type": "multimodal",
+        "expected_keywords": ["stop"],
+        "expected_visual_object": "STOP sign octagon",
+        "requires_dual_evidence": true
+      },
+      {
+        "query_id": "M05",
+        "query": "City Cafe",
+        "target_type": "multimodal",
+        "expected_keywords": ["city", "cafe", "bakery"],
+        "expected_visual_object": "Storefront awning",
+        "requires_dual_evidence": true
+      }
+    ],
+    "out_of_distribution": [
+      {
+        "query_id": "O01",
+        "query": "mango farming harvest",
+        "target_type": "unrelated",
+        "expected_matches": 0
+      },
+      {
+        "query_id": "O02",
+        "query": "quantum teleportation entanglement",
+        "target_type": "unrelated",
+        "expected_matches": 0
+      },
+      {
+        "query_id": "O03",
+        "query": "deep sea submarine exploration",
+        "target_type": "unrelated",
+        "expected_matches": 0
+      }
+    ]
+  }
+}

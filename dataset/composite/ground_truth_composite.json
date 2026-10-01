@@ -1,0 +1,45 @@
+{
+  "doc_composite_01_aadhaar.jpg": {
+    "query_target": "Aadhaar",
+    "has_text_match": true,
+    "text_terms": [
+      "Aadhaar Card",
+      "Samrudhi Deshmukh",
+      "Scholarship"
+    ],
+    "has_visual_match": true,
+    "visual_target": "Aadhaar Card Enclosure",
+    "bbox": {
+      "x": 90,
+      "y": 410,
+      "width": 720,
+      "height": 420
+    },
+    "signature_bbox": {
+      "x": 580,
+      "y": 960,
+      "width": 260,
+      "height": 130
+    }
+  },
+  "doc_composite_02_student_id.jpg": {
+    "query_target": "Student ID Card",
+    "has_text_match": true,
+    "text_terms": [
+      "identity proof",
+      "Student Identity Card"
+    ],
+    "has_visual_match": true,
+    "visual_target": "Student ID Card Enclosure",
+    "bbox": {
+      "x": 90,
+      "y": 320,
+      "width": 720,
+      "height": 400
+    }
+  },
+  "doc_composite_03_text_control.jpg": {
+    "has_text_match": false,
+    "has_visual_match": false
+  }
+}
