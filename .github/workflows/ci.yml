@@ -1,0 +1,106 @@
+name: CI/CD Pipeline - AI Image Search
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Backend Unit, OCR, NLP, and Integration Test Suite
+  # -------------------------------------------------------------
+  backend-ci:
+    name: Backend CI (FastAPI, OCR & Search Tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install System Dependencies (OpenCV & Fonts)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest httpx sentence-transformers torch
+
+      - name: Run Pytest Test Suite
+        working-directory: backend
+        run: |
+          python -m pytest tests/ -v --tb=short
+
+  # -------------------------------------------------------------
+  # Job 2: Flutter Mobile App Static Analysis & Unit Tests
+  # -------------------------------------------------------------
+  flutter-ci:
+    name: Mobile App CI (Flutter Analyze & Tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.4"
+          channel: "stable"
+          cache: true
+
+      - name: Install Flutter Dependencies
+        working-directory: mobile_app
+        run: flutter pub get
+
+      - name: Analyze Flutter Code
+        working-directory: mobile_app
+        run: flutter analyze
+
+      - name: Run Flutter Unit & Widget Tests
+        working-directory: mobile_app
+        run: flutter test
+
+  # -------------------------------------------------------------
+  # Job 3: End-to-End Query Regression & Verification Gate
+  # -------------------------------------------------------------
+  regression-gate:
+    name: E2E Search & Grounding Verification
+    needs: [backend-ci, flutter-ci]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install sentence-transformers torch httpx
+
+      - name: Run Search Regression Suite
+        working-directory: backend
+        run: |
+          python -c "
+          import sys
+          from app.search.exact_search import compute_exact_score
+          assert compute_exact_score('Avneet', 'AVNEET KAUR TITLE SPONSOR', 'test.jpg') == 1.0, 'Avneet exact match failed'
+          assert compute_exact_score('yash', 'VENUE YASHLAWNS', 'ticket.jpg') == 1.0, 'Compound word yash match failed'
+          assert compute_exact_score('payment', 'Narhari paid rent via okaxis', 'cred.jpg') == 1.0, 'Inflection match failed'
+          print('All Core E2E Search Gate Invariants Passed!')
+          "

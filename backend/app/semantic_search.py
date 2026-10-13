@@ -11,7 +11,7 @@ sys.modules["tensorflow"] = None
 
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
@@ -57,9 +57,13 @@ def build_embeddings_index() -> int:
     
     texts = []
     metadata = []
+    from app.translation import is_devanagari, translate_indic_text, get_query_expansions
     for img in images:
         # Use cleaned_text if present, fallback to extracted_text
         text = (img.get("cleaned_text") or img.get("extracted_text") or img.get("image_name", "")).strip()
+        if is_devanagari(text):
+            tr = translate_indic_text(text)
+            text = tr["searchable_translated_text"]
         texts.append(text)
         metadata.append(img)
 
@@ -77,6 +81,10 @@ def append_single_embedding(doc_row: dict) -> None:
     text = (doc_row.get("cleaned_text") or doc_row.get("extracted_text") or doc_row.get("image_name", "")).strip()
     if not text:
         return
+    from app.translation import is_devanagari, translate_indic_text
+    if is_devanagari(text):
+        tr = translate_indic_text(text)
+        text = tr["searchable_translated_text"]
     model = get_embedding_model()
     new_emb = model.encode([text], convert_to_tensor=True)
 
@@ -117,18 +125,18 @@ def load_embeddings_index() -> tuple[Any, list[dict]] | None:
     return data["embeddings"], data["metadata"]
 
 
-DEFAULT_SIMILARITY_THRESHOLD = 0.39
+DEFAULT_SIMILARITY_THRESHOLD = 0.44
 
 
 def semantic_search(
     query: str,
     top_k: int = 10,
-    min_score: float = DEFAULT_SIMILARITY_THRESHOLD,
+    min_score: Optional[float] = None,
 ) -> list[dict]:
     """
-    Perform semantic vector search using cosine similarity.
-    Filters out any document with similarity below min_score (calibrated to 0.39).
-    Returns ranked list of matching documents with similarity scores.
+    Perform semantic vector search using cosine similarity and Adaptive Dynamic Thresholding.
+    Prevents Data Drift by dynamically calculating tau_adaptive(Q, scores) based on mean,
+    standard deviation, and query length penalty instead of relying on a static cutoff.
     """
     index_data = load_embeddings_index()
     if not index_data:
@@ -139,29 +147,55 @@ def semantic_search(
         return []
 
     model = get_embedding_model()
-    query_emb = model.encode(query, convert_to_tensor=True)
+    from app.translation import get_query_expansions
+    expanded_terms = get_query_expansions(query)
+    search_query_text = " ".join(expanded_terms[:3]) if len(expanded_terms) > 1 else query
+    query_emb = model.encode(search_query_text, convert_to_tensor=True)
 
     # Compute cosine similarity between query and all documents
     cos_scores = util.cos_sim(query_emb, doc_embeddings)[0]
+    raw_scores = [round(float(s.item()), 4) for s in cos_scores]
 
-    # Rank & filter results by threshold
+    # Calculate Adaptive Dynamic Threshold if min_score is not explicitly provided
+    q_clean = query.strip()
+    is_num_q = q_clean.isdigit() or (len(q_clean) <= 3 and not q_clean.isalpha())
+
+    if min_score is None:
+        from app.scoring.custom_scorer import get_custom_scorer
+        scorer = get_custom_scorer()
+        # Calibrated tau_adaptive for semantic embeddings
+        dynamic_tau = scorer.compute_adaptive_threshold(query, raw_scores)
+        # Ensure threshold stays within healthy bounds: >= 0.44 for general queries, >= 0.48 for numeric
+        min_tau_bound = 0.48 if is_num_q else 0.44
+        calibrated_threshold = max(min_tau_bound, min(0.75, dynamic_tau))
+    else:
+        calibrated_threshold = min_score
+
+    # Rank & filter results by adaptive threshold
     results = []
-    print(f"\n[Semantic Search] Query: \"{query}\" (Threshold: {min_score})")
-    
-    for idx, score in enumerate(cos_scores):
-        score_val = round(score.item(), 4)
+    safe_q = query.encode("ascii", "replace").decode("ascii")
+    print(f"\n[Semantic Search] Query: \"{safe_q}\" (Adaptive Threshold: {calibrated_threshold:.4f})")
+
+    for idx, score_val in enumerate(raw_scores):
         doc_info = dict(metadata[idx])
         img_name = doc_info.get("image_name") or Path(doc_info.get("image_path", "")).name
+        raw_t = (doc_info.get("extracted_text", "") + " " + doc_info.get("cleaned_text", "")).lower()
 
-        if score_val >= min_score:
+        # Strict guard for numeric queries (e.g. "100", "88"):
+        # Reject candidates that lack the query number in OCR text unless semantic score is exceptionally high (>= 0.58)
+        if is_num_q and q_clean not in raw_t and score_val < 0.58:
+            print(f"  -> REJECT (Numeric Guard): {img_name:<28} | Score: {score_val:.4f} < 0.5800 and '{q_clean}' not in OCR text")
+            continue
+
+        if score_val >= calibrated_threshold:
             doc_info["similarity_score"] = score_val
             results.append(doc_info)
-            print(f"  -> ACCEPT: {img_name:<28} | Score: {score_val:.4f} >= {min_score}")
+            print(f"  -> ACCEPT: {img_name:<28} | Score: {score_val:.4f} >= {calibrated_threshold:.4f}")
         else:
             if score_val > 0.15:
-                print(f"  -> REJECT: {img_name:<28} | Score: {score_val:.4f} < {min_score}")
+                print(f"  -> REJECT: {img_name:<28} | Score: {score_val:.4f} < {calibrated_threshold:.4f}")
 
     # Sort descending by similarity score
     results.sort(key=lambda x: x["similarity_score"], reverse=True)
-    print(f"[Semantic Search] Total eligible matches passing threshold: {len(results[:top_k])}\n")
+    print(f"[Semantic Search] Total eligible matches passing adaptive threshold: {len(results[:top_k])}\n")
     return results[:top_k]

@@ -64,6 +64,8 @@ class SearchResult {
   final bool hasVisualObjects;
   final String visualSummary;
   final List<VisualObject> visualObjects;
+  final String qrPayload;
+  final String stegoPayload;
 
   SearchResult({
     required this.id,
@@ -78,6 +80,8 @@ class SearchResult {
     this.hasVisualObjects = false,
     this.visualSummary = '',
     this.visualObjects = const [],
+    this.qrPayload = '',
+    this.stegoPayload = '',
   });
 
   factory SearchResult.fromJson(
@@ -107,6 +111,8 @@ class SearchResult {
           .whereType<Map<String, dynamic>>()
           .map((e) => VisualObject.fromJson(e))
           .toList(),
+      qrPayload: (json['qr_payload'] as String?) ?? '',
+      stegoPayload: (json['stego_payload'] as String?) ?? '',
     );
   }
 }

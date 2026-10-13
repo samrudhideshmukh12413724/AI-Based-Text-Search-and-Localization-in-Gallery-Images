@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 import '../models/search_result.dart';
 import '../services/api_service.dart';
@@ -33,10 +34,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<int> _expandedRelIds = <int>{};
   final Map<int, String> _relErrors = {};
 
+  int _batchTotal = 0;
+  int _batchCurrent = 0;
+  String? _batchStatus;
+
   Future<void> _pickImage() async {
     setState(() {
       _error = null;
       _extractedText = '';
+      _batchStatus = null;
     });
     try {
       final file = await _picker.pickImage(source: ImageSource.gallery);
@@ -49,6 +55,46 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       setState(() => _error = 'Failed to pick image: $e');
     }
+  }
+
+  Future<void> _syncViaPicker() async {
+    final images = await _picker.pickMultiImage();
+    if (images.isEmpty) return;
+
+    setState(() {
+      _loading = true;
+      _batchTotal = images.length;
+      _batchCurrent = 0;
+      _batchStatus = 'Starting batch indexing of ${images.length} selected photos...';
+    });
+
+    int successCount = 0;
+    for (int i = 0; i < images.length; i++) {
+      final img = images[i];
+      setState(() {
+        _batchCurrent = i + 1;
+        _batchStatus = 'Indexing Photo (${i + 1}/${images.length}): ${img.name}...';
+      });
+      try {
+        final bytes = await img.readAsBytes();
+        await _api.uploadImageBytes(bytes, img.name);
+        successCount++;
+      } catch (e) {
+        debugPrint('Error indexing ${img.name}: $e');
+      }
+    }
+
+    setState(() {
+      _batchStatus = '✅ Successfully indexed $successCount of ${images.length} photos!';
+    });
+  }
+
+  Future<void> _pickAndSyncGallery() async {
+    setState(() {
+      _error = null;
+      _batchStatus = null;
+    });
+    await _syncViaPicker();
   }
 
   Future<void> _extractText() async {
@@ -510,6 +556,59 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showServerSettingsDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: ApiService.baseUrl.replaceAll('http://', '').replaceAll(':8000', ''),
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.wifi_tethering, color: Color(0xFF2563EB)),
+            SizedBox(width: 8),
+            Text('Server IP Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Active Backend Server URL:\n${ApiService.baseUrl}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Enter PC IP (e.g. 192.168.1.7)',
+                hintText: '192.168.1.7',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                ApiService.setCustomIp(controller.text);
+                setState(() => _error = null);
+              }
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('CONNECT'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -525,6 +624,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('AI Document Search'),
         centerTitle: true,
         elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_ethernet),
+            tooltip: 'Server Connection Settings',
+            onPressed: () => _showServerSettingsDialog(context),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -543,15 +649,65 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'Upload & OCR Document',
+                            'Upload & Ingest Gallery Photos / Documents',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: _pickImage,
-                            icon: const Icon(Icons.photo_library_outlined),
-                            label: const Text('SELECT DOCUMENT IMAGE'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _loading ? null : _pickImage,
+                                  icon: const Icon(Icons.photo_outlined, size: 18),
+                                  label: const Text('SINGLE IMAGE', style: TextStyle(fontSize: 12)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _loading ? null : _pickAndSyncGallery,
+                                  icon: const Icon(Icons.collections_outlined, size: 18),
+                                  label: const Text('SYNC GALLERY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF15803D),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          if (_batchStatus != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: _batchStatus!.startsWith('✅') ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _batchStatus!.startsWith('✅') ? const Color(0xFF86EFAC) : const Color(0xFF93C5FD)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _batchStatus!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _batchStatus!.startsWith('✅') ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
+                                    ),
+                                  ),
+                                  if (_batchTotal > 0 && _batchCurrent <= _batchTotal && _loading) ...[
+                                    const SizedBox(height: 6),
+                                    LinearProgressIndicator(
+                                      value: _batchCurrent / _batchTotal,
+                                      backgroundColor: const Color(0xFFDBEAFE),
+                                      color: const Color(0xFF2563EB),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
                           if (_selectedImageBytes != null) ...[
                             const SizedBox(height: 12),
                             ClipRRect(
@@ -922,9 +1078,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildResultCard(BuildContext context, SearchResult result) {
     final hasScore = result.similarityScore != null;
+    final isKeyword = result.searchType == 'keyword' || (!hasScore ? false : result.similarityScore! >= 0.99);
     final isMultimodal = result.searchType == 'multimodal';
     final isVisual = result.searchType == 'visual';
-    final isSemantic = result.searchType == 'semantic' || (hasScore && !isMultimodal && !isVisual);
+    final isSemantic = result.searchType == 'semantic' || (!isKeyword && !isMultimodal && !isVisual);
     final displaySnippet = result.previewSnippet.isNotEmpty
         ? result.previewSnippet
         : result.matchedText;
@@ -957,7 +1114,33 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (isMultimodal)
+                if (isKeyword)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF15803D)),
+                        const SizedBox(width: 4),
+                        Text(
+                          hasScore
+                              ? 'Exact match: ${result.similarityScore!.toStringAsFixed(2)}'
+                              : 'Exact match: 1.00',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (isMultimodal)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                     decoration: BoxDecoration(
@@ -991,14 +1174,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0xFFD8B4FE), width: 1.2),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_scanner, size: 14, color: Color(0xFF7E22CE)),
-                        SizedBox(width: 4),
+                        const Icon(Icons.qr_code_scanner, size: 14, color: Color(0xFF7E22CE)),
+                        const SizedBox(width: 4),
                         Text(
-                          'Visual match',
-                          style: TextStyle(
+                          hasScore
+                              ? 'Visual match: ${result.similarityScore!.toStringAsFixed(2)}'
+                              : 'Visual match',
+                          style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF7E22CE),
@@ -1007,7 +1192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   )
-                else if (isSemantic)
+                else
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                     decoration: BoxDecoration(
@@ -1028,30 +1213,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1D4ED8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.text_fields, size: 14, color: Color(0xFF15803D)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Keyword match',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF15803D),
                           ),
                         ),
                       ],
@@ -1101,7 +1262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      if (result.hasVisualObjects && result.visualObjects.isNotEmpty)
+                      if (result.visualObjects.isNotEmpty)
                         Positioned.fill(
                           child: CustomPaint(
                             painter: BoundingBoxOverlayPainter(visualObjects: result.visualObjects),
@@ -1134,7 +1295,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
 
             // Phase 3 Visual Objects Badge Panel
-            if (result.hasVisualObjects && result.visualObjects.isNotEmpty) ...[
+            if (result.visualObjects.isNotEmpty) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1543,22 +1704,32 @@ class BoundingBoxOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (visualObjects.isEmpty) return;
 
-    final boxPaint = Paint()
+    final cyanBoxPaint = Paint()
       ..color = const Color(0xFF00E5FF) // Vibrant Cyan
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
 
-    final fillPaint = Paint()
+    final cyanFillPaint = Paint()
       ..color = const Color(0x2A00E5FF) // Subtle transparent Cyan fill
       ..style = PaintingStyle.fill;
 
+    final yellowBoxPaint = Paint()
+      ..color = const Color(0xFFFFD600) // Vibrant Gold Yellow
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final yellowFillPaint = Paint()
+      ..color = const Color(0x45FFD600) // Vibrant transparent Yellow highlight fill
+      ..style = PaintingStyle.fill;
+
     final cornerPaint = Paint()
-      ..color = const Color(0xFFFFD600) // Vibrant Yellow Corner Markers
+      ..color = const Color(0xFFFFEA00) // Bright Yellow Corner Markers
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.square;
 
     for (final obj in visualObjects) {
+      final isTextHighlight = obj.type == 'text_highlight';
       final rect = Rect.fromLTWH(
         obj.normX * size.width,
         obj.normY * size.height,
@@ -1566,9 +1737,12 @@ class BoundingBoxOverlayPainter extends CustomPainter {
         obj.normH * size.height,
       );
 
+      final currentFill = isTextHighlight ? yellowFillPaint : cyanFillPaint;
+      final currentBox = isTextHighlight ? yellowBoxPaint : cyanBoxPaint;
+
       // Draw bounding box rectangle & fill
-      canvas.drawRect(rect, fillPaint);
-      canvas.drawRect(rect, boxPaint);
+      canvas.drawRect(rect, currentFill);
+      canvas.drawRect(rect, currentBox);
 
       // Draw corner brackets
       final cornerLen = (rect.width * 0.25).clamp(4.0, 14.0);

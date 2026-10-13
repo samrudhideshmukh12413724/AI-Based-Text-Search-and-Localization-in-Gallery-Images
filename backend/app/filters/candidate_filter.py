@@ -36,6 +36,11 @@ def get_eligible_candidate_ids(
 
     active_filter_sets: List[Set[int]] = []
 
+    # 0. User ID Scoping Filter (Multi-Tenant Isolation)
+    if params.user_id is not None:
+        user_ids = {r["id"] for r in rows if r.get("user_id", 1) == params.user_id}
+        active_filter_sets.append(user_ids)
+
     # 1. Date Range Filter
     if bool(params.date_from and params.date_from.strip()) or bool(params.date_to and params.date_to.strip()):
         date_ids = filter_by_date_range(rows, date_from=params.date_from, date_to=params.date_to)

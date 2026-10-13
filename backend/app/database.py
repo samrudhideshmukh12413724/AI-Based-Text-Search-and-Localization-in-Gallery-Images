@@ -20,6 +20,16 @@ def init_db() -> None:
     with _connect() as conn:
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                hashed_password TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS images (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 image_name TEXT NOT NULL,
@@ -36,6 +46,8 @@ def init_db() -> None:
         )
         # Migrate existing tables if columns are missing
         columns = [col[1] for col in conn.execute("PRAGMA table_info(images)").fetchall()]
+        if "user_id" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN user_id INTEGER DEFAULT 1")
         if "original_ocr_text" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN original_ocr_text TEXT DEFAULT ''")
         if "cleaned_text" not in columns:
@@ -78,8 +90,11 @@ def init_db() -> None:
             conn.execute("ALTER TABLE images ADD COLUMN qr_payload TEXT DEFAULT ''")
         if "stego_payload" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN stego_payload TEXT DEFAULT ''")
+        if "ocr_boxes_json" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN ocr_boxes_json TEXT DEFAULT '[]'")
 
         # Indexes for fast lookup
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_phash ON images(phash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_sha256 ON images(sha256_hash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_canonical ON images(canonical_image_id)")
@@ -158,6 +173,7 @@ def save_image(
     has_visual_objects: int = 0,
     visual_metadata: str | dict = "{}",
     entities: str | dict = "{}",
+    user_id: int = 1,
 ) -> dict:
     created_at = datetime.now(timezone.utc).isoformat()
     orig = original_ocr_text or extracted_text
@@ -170,9 +186,9 @@ def save_image(
             """
             INSERT INTO images (
                 image_name, image_path, extracted_text, original_ocr_text, 
-                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at
+                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at, user_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(image_path) DO UPDATE SET
                 image_name = excluded.image_name,
                 extracted_text = excluded.extracted_text,
@@ -182,9 +198,10 @@ def save_image(
                 has_visual_objects = excluded.has_visual_objects,
                 visual_metadata = excluded.visual_metadata,
                 entities_json = excluded.entities_json,
-                created_at = excluded.created_at
+                created_at = excluded.created_at,
+                user_id = excluded.user_id
             """,
-            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at),
+            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at, user_id),
         )
         conn.commit()
         row_id = cursor.lastrowid
@@ -487,4 +504,81 @@ def clear_all_relationships() -> None:
     with _connect() as conn:
         conn.execute("DELETE FROM image_relationships")
         conn.commit()
+
+
+def create_user(username: str, hashed_password: str) -> dict:
+    """Creates a new user record in SQLite."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (username, hashed_password, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (username, hashed_password, created_at),
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+    return {"id": user_id, "username": username, "created_at": created_at}
+
+
+def get_user_by_username(username: str) -> dict | None:
+    """Fetches a user record by username."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    """Fetches a user record by user_id."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_image_ocr_boxes(image_id: int, word_boxes: list | str) -> None:
+    """Stores OCR word bounding boxes JSON for an image ID."""
+    box_str = json.dumps(word_boxes) if isinstance(word_boxes, list) else (word_boxes or "[]")
+    with _connect() as conn:
+        conn.execute("UPDATE images SET ocr_boxes_json = ? WHERE id = ?", (box_str, image_id))
+        conn.commit()
+
+
+def get_image_ocr_boxes(image_id: int) -> list[dict]:
+    """Retrieves OCR word bounding boxes list for an image ID."""
+    with _connect() as conn:
+        row = conn.execute("SELECT ocr_boxes_json FROM images WHERE id = ?", (image_id,)).fetchone()
+        if row and row["ocr_boxes_json"]:
+            try:
+                return json.loads(row["ocr_boxes_json"])
+            except Exception:
+                return []
+    return []
+
+
+def update_image_text(image_id: int, extracted_text: str, original_ocr_text: str = "", cleaned_text: str = "") -> None:
+    """Updates extracted_text, original_ocr_text, and cleaned_text for an image ID."""
+    orig = original_ocr_text or extracted_text
+    cleaned = cleaned_text or extracted_text
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE images SET
+                extracted_text = ?,
+                original_ocr_text = ?,
+                cleaned_text = ?
+            WHERE id = ?
+            """,
+            (extracted_text, orig, cleaned, image_id),
+        )
+        conn.commit()
+
+
+
 

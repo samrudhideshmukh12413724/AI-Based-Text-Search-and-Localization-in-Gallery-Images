@@ -181,6 +181,108 @@ def get_semantic_highlights(
     return _filter_and_subsume_phrases(scored_candidates, max_terms=max_terms)
 
 
+def get_text_bounding_boxes(
+    query: str,
+    word_boxes: list[dict],
+    image_width: int = 0,
+    image_height: int = 0,
+    highlight_terms: list[str] = None
+) -> list[dict]:
+    """
+    Finds word bounding boxes matching the query or keyword tokens,
+    converting pixel coordinates to normalized bounding box overlays.
+    """
+    if not word_boxes:
+        return []
+
+    targets = list(highlight_terms or [])
+    if query:
+        q_tokens = [w.lower() for w in re.findall(r"[a-zA-Z0-9\u0900-\u097F]+", query) if len(w) >= 2 and w.lower() not in STOPWORDS]
+        targets.extend(q_tokens)
+
+    if not targets:
+        return []
+
+    # Extract all individual significant words from targets (including Devanagari)
+    target_words = set()
+    for t in targets:
+        t_str = str(t).strip().lower()
+        if not t_str:
+            continue
+        for w in re.findall(r"[a-zA-Z0-9\u0900-\u097F]+", t_str):
+            if len(w) >= 2 and w not in STOPWORDS:
+                target_words.add(w)
+
+    if not target_words:
+        return []
+
+    from difflib import SequenceMatcher
+    from app.search.exact_search import INFLECTION_MAP
+
+    expanded_target_words = set(target_words)
+    for tw in target_words:
+        if tw in INFLECTION_MAP:
+            expanded_target_words.update(INFLECTION_MAP[tw])
+
+    matched_boxes = []
+    seen = set()
+
+    for box in word_boxes:
+        w_text = box.get("text", "").strip()
+        if not w_text or len(w_text) < 2:
+            continue
+
+        w_lower = w_text.lower()
+        box_tokens = [w.lower() for w in re.findall(r"[a-zA-Z0-9\u0900-\u097F]+", w_lower)]
+
+        is_match = False
+        for tw in expanded_target_words:
+            if tw in box_tokens:
+                is_match = True
+                break
+            # Substring matching for longer terms
+            if any((tw in bt or bt in tw) for bt in box_tokens if len(bt) >= 3 and len(tw) >= 3):
+                is_match = True
+                break
+            # Fuzzy typo matching for OCR handwriting / camera errors
+            if any(len(tw) >= 4 and len(bt) >= 4 and SequenceMatcher(None, tw, bt).ratio() >= 0.75 for bt in box_tokens):
+                is_match = True
+                break
+
+        if is_match:
+            bbox = box.get("bbox", {})
+            if not bbox or "x" not in bbox or bbox.get("width", 0) <= 0:
+                continue
+
+            x, y, w, h = int(bbox["x"]), int(bbox["y"]), int(bbox["width"]), int(bbox["height"])
+            box_key = (x, y, w, h)
+            if box_key in seen:
+                continue
+            seen.add(box_key)
+
+            norm_bbox = {}
+            if image_width > 0 and image_height > 0:
+                norm_bbox = {
+                    "x": round(x / image_width, 4),
+                    "y": round(y / image_height, 4),
+                    "width": round(w / image_width, 4),
+                    "height": round(h / image_height, 4)
+                }
+
+            matched_boxes.append({
+                "label": f"Text Match: {w_text}",
+                "type": "text_highlight",
+                "text": w_text,
+                "confidence": str(box.get("confidence", 0.95)),
+                "location_desc": "In-Image Text",
+                "bbox": {"x": x, "y": y, "width": w, "height": h},
+                "normalized_bbox": norm_bbox,
+                "data": f"Matched Text: {w_text}"
+            })
+
+    return matched_boxes
+
+
 def build_highlight_payload(
     query: str,
     raw_text: str,
@@ -188,9 +290,13 @@ def build_highlight_payload(
     query_embedding: np.ndarray = None,
     threshold: float = 0.38,
     max_terms: int = 4,
+    word_boxes: list[dict] = None,
+    image_width: int = 0,
+    image_height: int = 0,
 ) -> dict:
     """
-    Construct the full highlight payload for a single document search result.
+    Construct the full highlight payload for a single document search result,
+    including preview snippet, matched concepts, and in-image text bounding boxes.
     """
     model = get_embedding_model()
 
@@ -232,8 +338,18 @@ def build_highlight_payload(
                     highlight_terms.append(t)
         matched_concepts = highlight_terms[:3]
 
+    text_boxes = get_text_bounding_boxes(
+        query=query,
+        word_boxes=word_boxes or [],
+        image_width=image_width,
+        image_height=image_height,
+        highlight_terms=highlight_terms,
+    )
+
     return {
         "preview_snippet": preview,
         "highlight_terms": highlight_terms,
         "matched_concepts": matched_concepts,
+        "text_bounding_boxes": text_boxes,
     }
+

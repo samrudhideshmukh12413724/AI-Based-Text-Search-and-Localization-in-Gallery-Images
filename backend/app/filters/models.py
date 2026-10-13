@@ -14,6 +14,9 @@ class FilterParams:
     format: Optional[str] = None
     visual_type: Optional[str] = None
     entity_type: Optional[str] = None
+    min_amount: Optional[float] = None
+    max_amount: Optional[float] = None
+    user_id: Optional[int] = None
 
     def has_any_filter(self) -> bool:
         """Returns True if at least one filter criterion is active."""
@@ -25,4 +28,7 @@ class FilterParams:
             bool(self.format and self.format.strip()),
             bool(self.visual_type and self.visual_type.strip()),
             bool(self.entity_type and self.entity_type.strip()),
+            self.min_amount is not None,
+            self.max_amount is not None,
+            self.user_id is not None,
         ])

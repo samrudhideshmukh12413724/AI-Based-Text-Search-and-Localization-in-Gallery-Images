@@ -5,6 +5,15 @@ __pycache__/
 venv/
 .venv/
 *.db-journal
+.pytest_cache/
+.coverage
+*.log
+
+# Secrets & Environment
+.env
+*.env
+*.env.local
+
 
 # Flutter / Dart
 .dart_tool/

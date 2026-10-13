@@ -88,50 +88,11 @@ def collapse_duplicate_results(
                 db_cache[cid] = c_row
         canon_row = db_cache.get(cid)
 
-        # Determine representative card
-        if canon_item is not None:
-            # Canonical image is present in results: it is the representative, boosted to best score
-            rep = dict(canon_item)
-            rep["similarity_score"] = best_score
-            if best_item.get("search_type") == "multimodal":
-                rep["search_type"] = "multimodal"
-            # Variants are all OTHER items in this group
-            variants = [it for it in group_items if it.get("id") != cid]
-        elif len(group_items) > 1:
-            # Multiple duplicate copies matched, but canonical was not returned
-            single_item = best_item
-            s_id = single_item.get("id")
-            s_row = db_cache.get(s_id)
-            mtype = s_row.get("duplicate_match_type", "") if s_row else ""
-            if mtype in ("exact_binary", "exact_phash") and canon_row:
-                rep = dict(single_item)
-                rep["id"] = canon_row["id"]
-                rep["image_name"] = canon_row["image_name"]
-                rep["image_path"] = canon_row["image_path"]
-                rep["image_url"] = f"/uploads/{canon_row['image_name']}"
-                variants = [dict(it) for it in group_items]
-            else:
-                rep = dict(best_item)
-                variants = [it for it in group_items if it.get("id") != best_item.get("id")]
-        else:
-            # Exactly 1 item in group
-            single_item = group_items[0]
-            s_id = single_item.get("id")
-            s_row = db_cache.get(s_id)
-            mtype = s_row.get("duplicate_match_type", "") if s_row else ""
-
-            if s_id != cid and mtype in ("exact_binary", "exact_phash") and canon_row:
-                # Exact duplicate copy represented by canonical image
-                rep = dict(single_item)
-                rep["id"] = canon_row["id"]
-                rep["image_name"] = canon_row["image_name"]
-                rep["image_path"] = canon_row["image_path"]
-                rep["image_url"] = f"/uploads/{canon_row['image_name']}"
-                variants = [dict(single_item)]
-            else:
-                # Canonical or single distinct item
-                rep = dict(single_item)
-                variants = []
+        # Representative card MUST always be best_item (the highest-scoring item matching the query).
+        # We NEVER overwrite the image or content of the item that actually matched the query.
+        rep = dict(best_item)
+        rep["similarity_score"] = best_score
+        variants = [it for it in group_items if it.get("id") != best_item.get("id")]
 
         # Format variant objects for response
         formatted_variants = []

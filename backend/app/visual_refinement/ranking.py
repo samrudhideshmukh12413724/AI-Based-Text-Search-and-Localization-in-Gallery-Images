@@ -54,14 +54,24 @@ def rank_visual_candidates(
 
         # Localization refinement when top region is generic
         if top_r.get("region_source") in GENERIC_SOURCES and len(patches) > 1:
+            q_low = query.lower()
+            LOCAL_OBJECT_TERMS = {
+                "stamp", "seal", "signature", "car", "vehicle", "phone", "smartphone", 
+                "mug", "coffee", "cup", "laptop", "dog", "cat", "bicycle", "bike", "qr"
+            }
+            is_object_query = any(term in q_low for term in LOCAL_OBJECT_TERMS)
+
             for sub_sim, sub_r in patches[1:]:
                 if sub_r.get("region_source") in SPECIFIC_SOURCES:
                     if top_r.get("region_source") == "full_doc":
                         norm_bbox = sub_r.get("normalized_bbox", {})
                         norm_area = norm_bbox.get("width", 0.0) * norm_bbox.get("height", 0.0)
-                        tolerance = 0.025 if norm_area >= 0.06 else 0.012
+                        if is_object_query:
+                            tolerance = 0.042
+                        else:
+                            tolerance = 0.025 if norm_area >= 0.06 else 0.012
                     else:
-                        tolerance = 0.025
+                        tolerance = 0.035 if is_object_query else 0.025
 
                     if (doc_sim - sub_sim) <= tolerance:
                         best_sim, best_r = sub_sim, sub_r
