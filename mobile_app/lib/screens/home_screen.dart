@@ -582,8 +582,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                labelText: 'Enter PC IP (e.g. 192.168.1.7)',
-                hintText: '192.168.1.7',
+                labelText: 'Enter PC IP (e.g. 192.168.1.4)',
+                hintText: '192.168.1.4',
                 border: OutlineInputBorder(),
               ),
             ),

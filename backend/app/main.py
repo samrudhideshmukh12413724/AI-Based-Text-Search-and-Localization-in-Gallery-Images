@@ -168,8 +168,33 @@ def upload_image(
     safe_name = f"{Path(original_name).stem}_{uuid.uuid4().hex[:8]}{suffix}"
     dest_path = UPLOADS_DIR / safe_name
 
-    with open(dest_path, "wb") as out:
-        out.write(data)
+    # Normalize phone camera EXIF orientation & auto-downscale giant resolutions (>2560px)
+    try:
+        import io
+        from PIL import Image as PILImg, ImageOps
+        pil_img = PILImg.open(io.BytesIO(data))
+        pil_img = ImageOps.exif_transpose(pil_img)
+
+        # Scale down oversized photos (e.g. 48MP) to preserve crisp OCR while eliminating memory/time lag
+        max_dim = 2560
+        if max(pil_img.size) > max_dim:
+            scale = max_dim / float(max(pil_img.size))
+            new_size = (int(pil_img.width * scale), int(pil_img.height * scale))
+            pil_img = pil_img.resize(new_size, PILImg.Resampling.LANCZOS)
+
+        if suffix in [".jpg", ".jpeg"]:
+            pil_img.convert("RGB").save(dest_path, format="JPEG", quality=95)
+        elif suffix == ".png":
+            pil_img.save(dest_path, format="PNG")
+        elif suffix == ".webp":
+            pil_img.save(dest_path, format="WEBP", quality=95)
+        else:
+            with open(dest_path, "wb") as out:
+                out.write(data)
+    except Exception as e:
+        print(f"[Upload Ingestion] EXIF normalize fallback: {e}")
+        with open(dest_path, "wb") as out:
+            out.write(data)
 
     # 1. Run Duplicate & Near-Duplicate Detection (Phase 4 Step 5)
     dupe_res = check_duplicate(dest_path)
@@ -469,9 +494,16 @@ def search_images(
     # =========================================================================
     visual_candidates: dict[int, dict] = {}
     # Adapt visual threshold for numeric/code queries to prevent false positive CLIP noise
-    clean_q_raw = body.query.strip()
+    clean_q_raw = body.query.strip().lower()
     is_numeric_query = clean_q_raw.isdigit() or (len(clean_q_raw) <= 3 and not clean_q_raw.isalpha())
-    v_thresh = 0.380 if is_numeric_query else 0.335
+    VISUAL_TARGET_KEYWORDS = {
+        "stamp", "seal", "signature", "sign", "qr", "qrcode", "barcode", "logo",
+        "photo", "picture", "image", "portrait", "face", "car", "cat", "dog",
+        "diagram", "chart", "graph", "map", "table", "icon", "drawing", "badge",
+        "passport", "steganography"
+    }
+    is_visual_target_query = any(vk in clean_q_raw for vk in VISUAL_TARGET_KEYWORDS)
+    v_thresh = 0.380 if (is_numeric_query or not is_visual_target_query) else 0.335
 
     try:
         v_engine = get_visual_search_engine()
@@ -636,6 +668,8 @@ def search_images(
             v_raw = visual_candidates[img_id]["score"]
             if is_numeric_query and v_raw < 0.380:
                 continue
+            if not is_visual_target_query and v_raw < 0.400:
+                continue
             if v_raw < 0.335:
                 continue
             v_norm = round(_norm_vis_score(v_raw), 3)
@@ -678,6 +712,18 @@ def search_images(
     custom_scorer = get_custom_scorer()
     adaptive_cutoff = custom_scorer.compute_adaptive_threshold(body.query, all_fused_scores)
     fused_results = [r for r in fused_results if r.get("similarity_score", 0.0) >= adaptive_cutoff]
+
+    # If high-confidence text matches exist (keyword 1.00 or high semantic >= 0.85),
+    # prune weak visual-only stragglers (< 0.50) to prevent false-positive drift
+    has_high_confidence_text = any(
+        r.get("similarity_score", 0.0) >= 0.85 and r.get("search_type") in ("keyword", "semantic", "multimodal")
+        for r in fused_results
+    )
+    if has_high_confidence_text:
+        fused_results = [
+            r for r in fused_results
+            if r.get("search_type") != "visual" or r.get("similarity_score", 0.0) >= 0.50
+        ]
 
     # Collapse duplicate variants under canonical image (Phase 4 Step 5D-2)
     collapsed_results = collapse_duplicate_results(fused_results)

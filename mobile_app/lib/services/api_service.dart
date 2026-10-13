@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import '../models/search_result.dart';
 
 class ApiService {
-  static String _activeBaseUrl = 'http://192.168.1.7:8000';
+  static String _activeBaseUrl = 'http://192.168.1.4:8000';
   static String? customIp;
 
   static List<String> get candidateUrls {
@@ -19,9 +19,10 @@ class ApiService {
     if (kIsWeb) {
       list.add('http://127.0.0.1:8000');
     } else {
+      list.add('http://192.168.1.4:8000'); // Wi-Fi LAN (Current Laptop IP)
       list.add('http://127.0.0.1:8000'); // ADB reverse USB
-      list.add('http://192.168.1.7:8000'); // Wi-Fi LAN
-      list.add('http://10.0.2.2:8000'); // Emulator
+      list.add('http://10.0.2.2:8000'); // Android Emulator
+      list.add('http://192.168.1.7:8000'); // Alternate Wi-Fi LAN
     }
     return list;
   }
