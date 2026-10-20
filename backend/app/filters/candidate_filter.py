@@ -29,16 +29,16 @@ def get_eligible_candidate_ids(
     if not params.has_any_filter():
         return None
 
-    # Load all indexed image metadata from database
-    rows = database.list_images()
+    # Load all indexed image metadata from database and exclude incomplete or failed indexing
+    rows = [r for r in database.list_images() if r.get("indexing_status", "completed") == "completed"]
     if not rows:
         return set()
 
     active_filter_sets: List[Set[int]] = []
 
-    # 0. User ID Scoping Filter (Multi-Tenant Isolation)
+    # 0. User ID Scoping Filter (Strict Tenant & Demo Isolation)
     if params.user_id is not None:
-        user_ids = {r["id"] for r in rows if r.get("user_id", 1) == params.user_id}
+        user_ids = {r["id"] for r in rows if r.get("user_id") == params.user_id}
         active_filter_sets.append(user_ids)
 
     # 1. Date Range Filter

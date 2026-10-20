@@ -22,13 +22,19 @@ if %errorlevel% equ 0 (
     timeout /t 3 /nobreak >nul
 )
 
-:: 2. Check if Android Emulator is already running and fully ONLINE
+:: 2. Check if a device is connected (Physical Phone via USB or Emulator)
 echo.
-echo [2/4] Checking Android Virtual Device (%AVD_NAME%)...
-"%ADB%" devices | findstr /r "emulator-[0-9]*.*device$" >nul
-if %errorlevel% equ 0 goto EMU_ONLINE
+echo [2/4] Checking connected devices (Physical Phone or Emulator)...
+set DEVICE_FOUND=0
+"%ADB%" devices | findstr /v "List of devices" | findstr /r "device$" >nul
+if %errorlevel% equ 0 (
+    echo [Device] Active device detected via USB/ADB!
+    set DEVICE_FOUND=1
+    goto AFTER_DEVICE
+)
 
-:: Emulator is either offline, hung, or not running. Clean up first.
+:: If no device is connected, boot the Android Emulator
+echo [Device] No active device detected. Preparing Android Emulator (%AVD_NAME%)...
 echo [Emulator] Cleaning up any hung instances and stale locks...
 taskkill /f /im qemu-system-x86_64.exe >nul 2>&1
 taskkill /f /im emulator.exe >nul 2>&1
@@ -53,28 +59,24 @@ if "%BOOT_DONE%" neq "1" (
     goto WAIT_BOOT
 )
 echo [Emulator] Android OS boot completed successfully!
-goto AFTER_EMU
 
-:EMU_ONLINE
-echo [Emulator] Android Emulator %AVD_NAME% is already active and online!
-
-:AFTER_EMU
+:AFTER_DEVICE
 
 :: 3. Configure reverse port forwarding for local API calls
 echo.
-echo [3/4] Forwarding Backend Port 8000 to Emulator...
+echo [3/4] Forwarding Backend Port 8000 to connected device...
 "%ADB%" reverse tcp:8000 tcp:8000
 echo [Network] Port forwarding active: http://127.0.0.1:8000 and http://10.0.2.2:8000 mapped!
 
-:: 4. Build and run Flutter App on the emulator
+:: 4. Build and run Flutter App
 echo.
-echo [4/4] Building and launching Flutter app on Android Emulator...
+echo [4/4] Building and launching Flutter app...
 echo ========================================================
 echo The app will compile and automatically appear on your
-echo emulator screen. (Hot-reload: press 'r' in this window)
+echo device screen. (Hot-reload: press 'r' in this window)
 echo ========================================================
 echo.
 cd /d "%~dp0mobile_app"
-call flutter run -d emulator-5554
+call flutter run
 
 pause

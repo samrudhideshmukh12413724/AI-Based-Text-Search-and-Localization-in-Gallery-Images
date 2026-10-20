@@ -11,9 +11,11 @@ if str(backend_dir) not in sys.path:
 
 from fastapi.testclient import TestClient
 from app.main import app
+from app import database
 
 
 @pytest.fixture(scope="session")
 def client() -> TestClient:
     """Reusable TestClient fixture for FastAPI endpoints."""
+    database.init_db()
     return TestClient(app)

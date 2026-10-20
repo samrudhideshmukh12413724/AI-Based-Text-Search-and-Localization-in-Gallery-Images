@@ -4,6 +4,12 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 import jwt
+import bcrypt
+if not hasattr(bcrypt, "__about__"):
+    class _About:
+        __version__ = getattr(bcrypt, "__version__", "4.0.1")
+    bcrypt.__about__ = _About()
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
@@ -74,8 +80,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
     """Dependency that extracts user from JWT Bearer token, or defaults to public guest user."""
     if not token:
-        # Default guest user for backward compatibility
-        return {"id": 1, "username": "guest", "is_admin": True}
+        # Default public guest: strictly NON-admin, scoped only to public demo/guest documents
+        return {"id": 1, "username": "guest", "is_admin": False}
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,7 +104,7 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str,
 
 def get_current_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
     """Admin-only dependency ensuring current user has admin privileges (Role-Based Access Control)."""
-    if not current_user.get("is_admin", True):
+    if not current_user.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Operation forbidden: Admin privileges required."

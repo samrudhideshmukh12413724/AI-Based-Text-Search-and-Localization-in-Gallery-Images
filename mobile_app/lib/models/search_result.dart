@@ -66,6 +66,10 @@ class SearchResult {
   final List<VisualObject> visualObjects;
   final String qrPayload;
   final String stegoPayload;
+  final String? pdfUrl;
+  final Map<String, dynamic>? entities;
+  final String indexingStatus;
+  final String? matchReason;
 
   SearchResult({
     required this.id,
@@ -82,6 +86,10 @@ class SearchResult {
     this.visualObjects = const [],
     this.qrPayload = '',
     this.stegoPayload = '',
+    this.pdfUrl,
+    this.entities,
+    this.indexingStatus = 'completed',
+    this.matchReason,
   });
 
   factory SearchResult.fromJson(
@@ -94,6 +102,8 @@ class SearchResult {
     final rawHighlights = (json['highlight_terms'] as List<dynamic>?) ?? [];
     final rawConcepts = (json['matched_concepts'] as List<dynamic>?) ?? [];
     final rawVisualObjs = (json['visual_objects'] as List<dynamic>?) ?? [];
+    final rawPdfUrl = json['pdf_url'] as String?;
+    final rawEntities = json['entities'] as Map<String, dynamic>?;
 
     return SearchResult(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -113,6 +123,10 @@ class SearchResult {
           .toList(),
       qrPayload: (json['qr_payload'] as String?) ?? '',
       stegoPayload: (json['stego_payload'] as String?) ?? '',
+      pdfUrl: rawPdfUrl != null ? (rawPdfUrl.startsWith('http') ? rawPdfUrl : '$baseUrl$rawPdfUrl') : '$baseUrl/images/${json['id']}/export-pdf',
+      entities: rawEntities,
+      indexingStatus: (json['indexing_status'] as String?) ?? 'completed',
+      matchReason: json['match_reason'] as String?,
     );
   }
 }

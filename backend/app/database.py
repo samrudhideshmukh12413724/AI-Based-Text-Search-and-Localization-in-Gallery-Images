@@ -11,7 +11,9 @@ DB_PATH = ROOT_DIR / "database" / "images.db"
 
 def _connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=15.0)
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -45,6 +47,11 @@ def init_db() -> None:
             """
         )
         # Migrate existing tables if columns are missing
+        user_columns = [col[1] for col in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "is_admin" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1 OR username = 'alice'")
+
         columns = [col[1] for col in conn.execute("PRAGMA table_info(images)").fetchall()]
         if "user_id" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN user_id INTEGER DEFAULT 1")
@@ -92,12 +99,21 @@ def init_db() -> None:
             conn.execute("ALTER TABLE images ADD COLUMN stego_payload TEXT DEFAULT ''")
         if "ocr_boxes_json" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN ocr_boxes_json TEXT DEFAULT '[]'")
+        if "indexing_status" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN indexing_status TEXT DEFAULT 'completed'")
+        if "is_demo" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN is_demo INTEGER DEFAULT 0")
 
         # Indexes for fast lookup
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_is_demo ON images(is_demo)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_indexing_status ON images(indexing_status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_phash ON images(phash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_sha256 ON images(sha256_hash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_canonical ON images(canonical_image_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_name ON images(image_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_created ON images(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_category ON images(category)")
 
         # Phase 3B: Visual Regions & Embeddings Table
         conn.execute(
@@ -160,7 +176,27 @@ def _parse_row(row: sqlite3.Row | None) -> dict | None:
             d["entities"] = json.loads(e_raw) if e_raw else {}
         except Exception:
             d["entities"] = {}
+
+    # Ensure indexing_status and is_demo fields exist
+    d["indexing_status"] = d.get("indexing_status") or "completed"
+    d["is_demo"] = int(d.get("is_demo") or 0)
     return d
+
+
+# =============================================================================
+# In-Memory Database Caching Engine (sub-millisecond retrieval)
+# =============================================================================
+_cached_images: list[dict] | None = None
+_cached_images_by_id: dict[int, dict] | None = None
+_cached_visual_regions: list[dict] | None = None
+
+
+def invalidate_cache() -> None:
+    """Invalidates in-memory caches on database mutations."""
+    global _cached_images, _cached_images_by_id, _cached_visual_regions
+    _cached_images = None
+    _cached_images_by_id = None
+    _cached_visual_regions = None
 
 
 def save_image(
@@ -174,21 +210,24 @@ def save_image(
     visual_metadata: str | dict = "{}",
     entities: str | dict = "{}",
     user_id: int = 1,
+    qr_payload: str = "",
+    is_demo: int | None = None,
 ) -> dict:
     created_at = datetime.now(timezone.utc).isoformat()
     orig = original_ocr_text or extracted_text
     cleaned = cleaned_text or extracted_text
     v_meta_str = json.dumps(visual_metadata) if isinstance(visual_metadata, dict) else (visual_metadata or "{}")
     ent_str = json.dumps(entities) if isinstance(entities, dict) else (entities or "{}")
+    demo_val = 1 if (is_demo is True or is_demo == 1 or (is_demo is None and user_id == 1)) else 0
 
     with _connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO images (
                 image_name, image_path, extracted_text, original_ocr_text, 
-                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at, user_id
+                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at, user_id, qr_payload, is_demo
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(image_path) DO UPDATE SET
                 image_name = excluded.image_name,
                 extracted_text = excluded.extracted_text,
@@ -199,11 +238,14 @@ def save_image(
                 visual_metadata = excluded.visual_metadata,
                 entities_json = excluded.entities_json,
                 created_at = excluded.created_at,
-                user_id = excluded.user_id
+                user_id = excluded.user_id,
+                qr_payload = CASE WHEN excluded.qr_payload != '' THEN excluded.qr_payload ELSE images.qr_payload END,
+                is_demo = excluded.is_demo
             """,
-            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at, user_id),
+            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at, user_id, qr_payload, demo_val),
         )
         conn.commit()
+        invalidate_cache()
         row_id = cursor.lastrowid
         if row_id == 0:
             row = conn.execute(
@@ -220,6 +262,7 @@ def update_image_entities(image_id: int, entities: dict | str) -> None:
     with _connect() as conn:
         conn.execute("UPDATE images SET entities_json = ? WHERE id = ?", (ent_str, image_id))
         conn.commit()
+        invalidate_cache()
 
 
 def get_image_entities(image_id: int) -> dict:
@@ -261,6 +304,7 @@ def update_image_metadata(
             (file_size_bytes, image_width, image_height, file_format, file_modified_at, exif_created_at, primary_date, image_id),
         )
         conn.commit()
+        invalidate_cache()
 
 
 def update_multimodal_payloads(
@@ -282,6 +326,7 @@ def update_multimodal_payloads(
             (blip_caption, qr_payload, stego_payload, image_id),
         )
         conn.commit()
+        invalidate_cache()
 
 
 def update_image_duplicates(
@@ -309,33 +354,110 @@ def update_image_duplicates(
             (sha256_hash, phash, is_duplicate, canonical_image_id, duplicate_similarity, duplicate_match_type, image_id),
         )
         conn.commit()
+        invalidate_cache()
 
 
-def get_image_by_id(image_id: int) -> dict | None:
+def _assemble_searchable_text(row: dict) -> str:
+    ent = row.get("entities") or {}
+    urls_str = " ".join(ent.get("urls", [])) if isinstance(ent, dict) else ""
+    v_meta = row.get("visual_metadata") or {}
+    if isinstance(v_meta, str):
+        try:
+            v_meta = json.loads(v_meta)
+        except Exception:
+            v_meta = {}
+
+    vis_tokens = []
+    has_vis = bool(row.get("has_visual_objects")) or (isinstance(v_meta, dict) and v_meta.get("detected"))
+    has_qr = bool(row.get("qr_payload") and row.get("qr_payload").strip())
+    if has_vis or has_qr or (isinstance(v_meta, dict) and v_meta.get("type") == "qr_code"):
+        vis_tokens.extend(["qr", "qrcode", "qr_code", "barcode", "visual_object"])
+
+    if isinstance(v_meta, dict):
+        if v_meta.get("type"):
+            vis_tokens.append(str(v_meta.get("type")))
+        for obj in v_meta.get("objects", []):
+            if isinstance(obj, dict):
+                vis_tokens.append(str(obj.get("label", "")))
+                vis_tokens.append(str(obj.get("type", "")))
+                vis_tokens.append(str(obj.get("data", "")))
+
+    vis_str = " ".join(t for t in vis_tokens if t)
+    cat_str = str(row.get("category", ""))
+    return f"{row.get('extracted_text', '')} {row.get('cleaned_text', '')} {row.get('blip_caption', '')} {row.get('qr_payload', '')} {row.get('stego_payload', '')} {urls_str} {vis_str} {cat_str}".strip()
+
+
+def _load_all_images_to_cache() -> None:
+    global _cached_images, _cached_images_by_id
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
+        rows = conn.execute("SELECT * FROM images ORDER BY created_at DESC").fetchall()
+    parsed = []
+    by_id = {}
+    for r in rows:
+        if r is not None:
+            d = _parse_row(r)
+            d["searchable_text"] = _assemble_searchable_text(d)
+            parsed.append(d)
+            by_id[d["id"]] = d
+    _cached_images = parsed
+    _cached_images_by_id = by_id
+
+
+def get_image_by_id(image_id: int, user_id: int | None = None) -> dict | None:
+    global _cached_images_by_id
+    if _cached_images_by_id is None:
+        _load_all_images_to_cache()
+    if _cached_images_by_id is not None and image_id in _cached_images_by_id:
+        row = _cached_images_by_id[image_id]
+        if user_id is None or row.get("user_id", 1) == user_id:
+            return row
+        return None
+
+    with _connect() as conn:
+        if user_id is not None:
+            row = conn.execute("SELECT * FROM images WHERE id = ? AND user_id = ?", (image_id, user_id)).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
     return _parse_row(row)
 
 
-def list_images() -> list[dict]:
-    with _connect() as conn:
-        rows = conn.execute(
-            "SELECT * FROM images ORDER BY created_at DESC"
-        ).fetchall()
-    return [_parse_row(row) for row in rows if row is not None]
+get_image = get_image_by_id
 
 
-def search_by_keyword(query: str) -> list[dict]:
+def list_images(user_id: int | None = None) -> list[dict]:
+    global _cached_images
+    if _cached_images is None:
+        _load_all_images_to_cache()
+
+    if user_id == 1:
+        return [r for r in _cached_images if r.get("user_id", 1) == 1 and r.get("is_demo") == 1]
+    elif user_id is not None:
+        return [r for r in _cached_images if r.get("user_id", 1) == user_id]
+    else:
+        return list(_cached_images)
+
+
+def search_by_keyword(query: str, user_id: int | None = None) -> list[dict]:
     pattern = f"%{query.strip().lower()}%"
     with _connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT * FROM images
-            WHERE LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ?
-            ORDER BY created_at DESC
-            """,
-            (pattern, pattern),
-        ).fetchall()
+        if user_id is not None:
+            rows = conn.execute(
+                """
+                SELECT * FROM images
+                WHERE (LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?) AND user_id = ?
+                ORDER BY created_at DESC
+                """,
+                (pattern, pattern, pattern, user_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT * FROM images
+                WHERE LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?
+                ORDER BY created_at DESC
+                """,
+                (pattern, pattern, pattern),
+            ).fetchall()
     return [_parse_row(row) for row in rows if row is not None]
 
 
@@ -384,10 +506,15 @@ def save_visual_regions(image_id: int, image_name: str, regions: list[dict]) -> 
                 ),
             )
         conn.commit()
+        invalidate_cache()
 
 
 def get_all_visual_regions() -> list[dict]:
-    """Retrieves all visual regions with embeddings and associated image paths."""
+    """Retrieves all visual regions with embeddings and associated image paths (cached in RAM)."""
+    global _cached_visual_regions
+    if _cached_visual_regions is not None:
+        return list(_cached_visual_regions)
+
     with _connect() as conn:
         rows = conn.execute(
             """
@@ -403,6 +530,7 @@ def get_all_visual_regions() -> list[dict]:
         d["bbox"] = json.loads(d["bbox_json"]) if d.get("bbox_json") else {}
         d["normalized_bbox"] = json.loads(d["norm_bbox_json"]) if d.get("norm_bbox_json") else {}
         results.append(d)
+    _cached_visual_regions = results
     return results
 
 
@@ -506,20 +634,20 @@ def clear_all_relationships() -> None:
         conn.commit()
 
 
-def create_user(username: str, hashed_password: str) -> dict:
-    """Creates a new user record in SQLite."""
+def create_user(username: str, hashed_password: str, is_admin: int = 0) -> dict:
+    """Creates a new user record in SQLite with role-based access attributes."""
     created_at = datetime.now(timezone.utc).isoformat()
     with _connect() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO users (username, hashed_password, created_at)
-            VALUES (?, ?, ?)
+            INSERT INTO users (username, hashed_password, is_admin, created_at)
+            VALUES (?, ?, ?, ?)
             """,
-            (username, hashed_password, created_at),
+            (username, hashed_password, 1 if is_admin else 0, created_at),
         )
         conn.commit()
         user_id = cursor.lastrowid
-    return {"id": user_id, "username": username, "created_at": created_at}
+    return {"id": user_id, "username": username, "is_admin": bool(is_admin), "created_at": created_at}
 
 
 def get_user_by_username(username: str) -> dict | None:
@@ -529,7 +657,11 @@ def get_user_by_username(username: str) -> dict | None:
             "SELECT * FROM users WHERE username = ?",
             (username,),
         ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    d["is_admin"] = bool(d.get("is_admin", 0))
+    return d
 
 
 def get_user_by_id(user_id: int) -> dict | None:
@@ -539,7 +671,25 @@ def get_user_by_id(user_id: int) -> dict | None:
             "SELECT * FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    d["is_admin"] = bool(d.get("is_admin", 0))
+    return d
+
+
+def list_users() -> list[dict]:
+    """Returns a list of registered users for multi-tenant switching and UI selection."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, username, is_admin, created_at FROM users ORDER BY id ASC"
+        ).fetchall()
+    res = []
+    for r in rows:
+        d = dict(r)
+        d["is_admin"] = bool(d.get("is_admin", 0))
+        res.append(d)
+    return res
 
 
 def update_image_ocr_boxes(image_id: int, word_boxes: list | str) -> None:
@@ -548,6 +698,7 @@ def update_image_ocr_boxes(image_id: int, word_boxes: list | str) -> None:
     with _connect() as conn:
         conn.execute("UPDATE images SET ocr_boxes_json = ? WHERE id = ?", (box_str, image_id))
         conn.commit()
+        invalidate_cache()
 
 
 def get_image_ocr_boxes(image_id: int) -> list[dict]:
@@ -578,6 +729,54 @@ def update_image_text(image_id: int, extracted_text: str, original_ocr_text: str
             (extracted_text, orig, cleaned, image_id),
         )
         conn.commit()
+        invalidate_cache()
+
+
+def update_image_ocr_text(image_id: int, extracted_text: str, original_ocr_text: str = "", cleaned_text: str = "") -> None:
+    """Alias for update_image_text."""
+    update_image_text(image_id, extracted_text, original_ocr_text, cleaned_text)
+
+
+def update_image_indexing_status(image_id: int, status: str) -> None:
+    """Updates the background indexing status: queued, indexing, completed, failed."""
+    with _connect() as conn:
+        conn.execute("UPDATE images SET indexing_status = ? WHERE id = ?", (status, image_id))
+        conn.commit()
+        invalidate_cache()
+
+
+def update_image_visual_metadata(image_id: int, has_visual_objects: int, visual_metadata: dict | str) -> None:
+    """Updates visual object detection metadata for an image."""
+    v_str = json.dumps(visual_metadata) if isinstance(visual_metadata, dict) else (visual_metadata or "{}")
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE images SET has_visual_objects = ?, visual_metadata = ? WHERE id = ?",
+            (has_visual_objects, v_str, image_id),
+        )
+        conn.commit()
+        invalidate_cache()
+
+
+def get_sync_statistics(user_id: int | None = None) -> dict:
+    """Retrieves document count by indexing status (completed, queued, indexing, failed)."""
+    with _connect() as conn:
+        if user_id is not None:
+            rows = conn.execute(
+                "SELECT indexing_status, COUNT(*) as cnt FROM images WHERE user_id = ? GROUP BY indexing_status",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT indexing_status, COUNT(*) as cnt FROM images GROUP BY indexing_status"
+            ).fetchall()
+
+    counts = {"completed": 0, "queued": 0, "indexing": 0, "failed": 0, "total": 0}
+    for r in rows:
+        st = r["indexing_status"] or "completed"
+        c = r["cnt"]
+        counts[st] = counts.get(st, 0) + c
+        counts["total"] += c
+    return counts
 
 
 

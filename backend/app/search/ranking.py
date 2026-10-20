@@ -21,7 +21,8 @@ def unified_text_search(query: str, min_score: float = 0.65) -> Dict[str, Any]:
         return {"query": query, "count": 0, "results": []}
 
     exact_results = exact_search(cleaned, min_score=min_score)
-    fuzzy_results = fuzzy_search(cleaned, min_score=min_score)
+    # Only run expensive Damerau-Levenshtein fuzzy scan if exact lexical matches are sparse (< 3)
+    fuzzy_results = fuzzy_search(cleaned, min_score=min_score) if len(exact_results) < 3 else []
 
     merged: Dict[int, Dict[str, Any]] = {}
 

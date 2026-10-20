@@ -92,8 +92,8 @@ class VisualRegionExtractor:
         hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
         sat = hsv[:, :, 1]
         val = hsv[:, :, 2]
-        # Detect rich color regions excluding white background and dark black text
-        color_mask = cv2.inRange(hsv, np.array([0, 35, 40]), np.array([180, 255, 255]))
+        # Detect rich color regions excluding white background, ambient wall tints, and dark text
+        color_mask = cv2.inRange(hsv, np.array([0, 70, 50]), np.array([180, 255, 255]))
         color_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
         color_dilated = cv2.morphologyEx(color_mask, cv2.MORPH_CLOSE, color_kernel)
 
@@ -268,6 +268,9 @@ class VisualRegionExtractor:
                 if overlap:
                     continue
             filtered_boxes.append(box)
+
+        # Cap proposals to top 6 highest-priority regions to eliminate drift & phantom noise
+        filtered_boxes = filtered_boxes[:6]
 
         # ---------------------------------------------------------------------
         # 6. Build VisualRegion Objects

@@ -1,7 +1,12 @@
-import 'dart:typed_data';
+import 'dart:async';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/search_result.dart';
 import '../services/api_service.dart';
@@ -27,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _searchType;
   String? _searchMessage;
   bool _hasSearched = false;
+  bool _showFullExtractedText = false;
   final Set<int> _expandedRawTextIds = <int>{};
   final Map<int, List<RelatedImage>> _cachedRelationships = {};
   final Map<int, int?> _cachedCanonicalIds = {};
@@ -37,6 +43,60 @@ class _HomeScreenState extends State<HomeScreen> {
   int _batchTotal = 0;
   int _batchCurrent = 0;
   String? _batchStatus;
+  Timer? _syncPollerTimer;
+  int _searchRequestId = 0;
+
+  int _documentPriorityScore(String filename) {
+    final lower = filename.toLowerCase();
+    const highKeywords = [
+      'pan', 'aadhaar', 'aadhar', 'receipt', 'invoice', 'bill', 'cert',
+      'marksheet', 'id', 'card', 'college', 'exam', 'admit', 'admission',
+      'fees', 'fee', 'salary', 'form', 'pass', 'bonafide', 'hallticket',
+      'transcript', 'degree', 'diploma', 'voter', 'license', 'passport',
+      'challan', 'bank', 'statement', 'tuition', 'screenshot', 'screen', 'scan', 'cam'
+    ];
+    for (final kw in highKeywords) {
+      if (lower.contains(kw)) return 0; // High priority document (indexes first)
+    }
+    return 1; // Standard photo
+  }
+
+  void _startBackgroundSyncPoller(int successCount, int alreadySyncedCount) {
+    _syncPollerTimer?.cancel();
+    int pollerCycles = 0;
+    _syncPollerTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      pollerCycles++;
+      if (!mounted || pollerCycles > 60) {
+        timer.cancel();
+        return;
+      }
+      try {
+        final status = await _api.getSyncStatus();
+        final queued = (status['queued'] as int?) ?? 0;
+        final active = (status['active'] as int?) ?? 0;
+        final bool isActive = (status['is_active'] as bool?) ?? false;
+
+        if (mounted) {
+          if (isActive && (queued > 0 || active > 0)) {
+            setState(() {
+              _batchStatus = 'AI Indexing in progress ($active active, $queued queued)';
+            });
+          } else {
+            setState(() {
+              _batchStatus = 'Synced $successCount new documents ($alreadySyncedCount up to date). Indexing complete.';
+            });
+            timer.cancel();
+            // If user has an active query, refresh search results safely
+            if (_hasSearched && _searchController.text.trim().isNotEmpty) {
+              _search();
+            }
+          }
+        }
+      } catch (_) {
+        timer.cancel();
+      }
+    });
+  }
 
   Future<void> _pickImage() async {
     setState(() {
@@ -45,7 +105,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _batchStatus = null;
     });
     try {
-      final file = await _picker.pickImage(source: ImageSource.gallery);
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 88,
+      );
       if (file == null) return;
       final bytes = await file.readAsBytes();
       setState(() {
@@ -57,44 +122,496 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _syncViaPicker() async {
-    final images = await _picker.pickMultiImage();
-    if (images.isEmpty) return;
+  Future<void> _syncMobileFolderWithFilePicker() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+      );
 
-    setState(() {
-      _loading = true;
-      _batchTotal = images.length;
-      _batchCurrent = 0;
-      _batchStatus = 'Starting batch indexing of ${images.length} selected photos...';
-    });
+      if (result == null || result.files.isEmpty) return;
 
-    int successCount = 0;
-    for (int i = 0; i < images.length; i++) {
-      final img = images[i];
+      final files = result.files;
       setState(() {
-        _batchCurrent = i + 1;
-        _batchStatus = 'Indexing Photo (${i + 1}/${images.length}): ${img.name}...';
+        _loading = true;
+        _batchTotal = files.length;
+        _batchCurrent = 0;
+        _batchStatus = 'Checking ${files.length} documents for incremental sync...';
       });
-      try {
-        final bytes = await img.readAsBytes();
-        await _api.uploadImageBytes(bytes, img.name);
-        successCount++;
-      } catch (e) {
-        debugPrint('Error indexing ${img.name}: $e');
+
+      // Step 1: Pre-check with backend to skip already-indexed documents
+      final checkList = files.map((f) => {'filename': f.name, 'size': f.size}).toList();
+      final syncStatus = await _api.checkImagesForSync(checkList);
+      final List<String> missingNames = (syncStatus['missing'] as List<dynamic>?)?.cast<String>() ?? [];
+      final int alreadySyncedCount = (syncStatus['already_synced_count'] as int?) ?? (files.length - missingNames.length);
+
+      final toUpload = files.where((f) => missingNames.contains(f.name)).toList();
+
+      if (toUpload.isEmpty) {
+        setState(() {
+          _batchStatus = 'All ${files.length} documents are already synced (0 new files).';
+        });
+        return;
+      }
+
+      // Priority sort: important documents (PAN, Aadhaar, receipts, forms) first!
+      toUpload.sort((a, b) {
+        final scoreA = _documentPriorityScore(a.name);
+        final scoreB = _documentPriorityScore(b.name);
+        return scoreA.compareTo(scoreB);
+      });
+
+      setState(() {
+        _batchTotal = toUpload.length;
+        _batchCurrent = 0;
+        _batchStatus = 'Syncing ${toUpload.length} new documents ($alreadySyncedCount already up to date)...';
+      });
+
+      int successCount = 0;
+      int failedCount = 0;
+      const int concurrency = 3;
+
+      for (int i = 0; i < toUpload.length; i += concurrency) {
+        if (!_loading) {
+          debugPrint('Sync canceled by user');
+          break;
+        }
+
+        final end = (i + concurrency < toUpload.length) ? i + concurrency : toUpload.length;
+        final chunk = toUpload.sublist(i, end);
+
+        final futures = chunk.map((f) async {
+          final name = f.name;
+          Uint8List? bytes = f.bytes;
+          if (bytes == null && f.path != null) {
+            try {
+              bytes = await File(f.path!).readAsBytes();
+            } catch (e) {
+              debugPrint('Error reading file $name: $e');
+            }
+          }
+          if (bytes != null && bytes.isNotEmpty) {
+            try {
+              await _api.uploadImageBytes(bytes, name, asyncProcessing: true);
+              return true;
+            } catch (e) {
+              debugPrint('Error uploading $name: $e');
+              return false;
+            }
+          }
+          return false;
+        }).toList();
+
+        final results = await Future.wait(futures);
+        for (final res in results) {
+          if (res) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _batchCurrent = end;
+            _batchStatus = 'Uploading: $end/${toUpload.length} ($successCount sent, $alreadySyncedCount skipped)...';
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _batchStatus = failedCount > 0
+              ? 'Uploaded $successCount documents ($failedCount skipped). AI background indexing active.'
+              : 'Uploaded $successCount documents. AI background indexing active.';
+        });
+        if (_hasSearched && _searchController.text.trim().isNotEmpty) {
+          _search();
+        }
+        if (successCount > 0) {
+          _startBackgroundSyncPoller(successCount, alreadySyncedCount);
+        }
+      }
+    } catch (e) {
+      setState(() => _error = 'Folder sync error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
       }
     }
-
-    setState(() {
-      _batchStatus = '✅ Successfully indexed $successCount of ${images.length} photos!';
-    });
   }
 
-  Future<void> _pickAndSyncGallery() async {
+  Future<void> _syncFolder() async {
     setState(() {
       _error = null;
       _batchStatus = null;
     });
-    await _syncViaPicker();
+
+    if (kIsWeb) {
+      await _syncMobileFolderWithFilePicker();
+      return;
+    }
+
+    try {
+      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      if (!ps.isAuth && !ps.hasAccess) {
+        await _syncMobileFolderWithFilePicker();
+        return;
+      }
+
+      final List<AssetPathEntity> rawAlbums = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+      );
+
+      if (!mounted) return;
+
+      if (rawAlbums.isEmpty) {
+        await _syncMobileFolderWithFilePicker();
+        return;
+      }
+
+      // Filter and separate specific folders (Camera, WhatsApp, Downloads, etc.)
+      final List<AssetPathEntity> albums = rawAlbums;
+
+      final selectedAlbum = await showModalBottomSheet<dynamic>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) {
+          return SafeArea(
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.folder_copy, color: Color(0xFF2563EB), size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sync a Mobile Folder',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Tap any 1 folder below to sync all documents inside it',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Primary Action Tile: Open File Manager for ANY folder
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF86EFAC)),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF15803D),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.drive_folder_upload, color: Colors.white, size: 24),
+                      ),
+                      title: const Text(
+                        'Open Phone File Manager',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF166534)),
+                      ),
+                      subtitle: const Text(
+                        'Navigate to ANY folder (WhatsApp, Downloads, etc.) ➔ tap "Select All"',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF15803D)),
+                      onTap: () => Navigator.of(ctx).pop('file_picker'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    child: Text(
+                      'OR CHOOSE A SPECIFIC PHONE ALBUM / FOLDER:',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5),
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: albums.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
+                      itemBuilder: (ctx, idx) {
+                        final album = albums[idx];
+                        return FutureBuilder<int>(
+                          future: album.assetCountAsync,
+                          builder: (ctx, snap) {
+                            final count = snap.data ?? 0;
+                            return ListTile(
+                              leading: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: const Icon(Icons.folder, color: Color(0xFF2563EB), size: 24),
+                              ),
+                              title: Text(
+                                album.name,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                              ),
+                              subtitle: Text(
+                                '$count photos • Tap to sync ONLY this folder',
+                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF2563EB), fontWeight: FontWeight.w500),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF15803D),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'SYNC THIS',
+                                  style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              onTap: () => Navigator.of(ctx).pop(album),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      if (selectedAlbum == null || !mounted) return;
+
+      if (selectedAlbum == 'file_picker') {
+        await _syncMobileFolderWithFilePicker();
+        return;
+      }
+
+      final AssetPathEntity album = selectedAlbum as AssetPathEntity;
+      final int totalCount = await album.assetCountAsync;
+      if (totalCount == 0) {
+        setState(() => _error = 'Selected folder "${album.name}" is empty.');
+        return;
+      }
+
+      int scanLimit = totalCount;
+      if (totalCount > 100) {
+        if (!mounted) return;
+        final choice = await showDialog<int>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.flash_on, color: Color(0xFFF59E0B)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Sync "${album.name}"',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              'This folder has $totalCount items. How would you like to sync?\n\n'
+              'Quick Scan (Latest 100): Scans your recent documents (PAN card, Aadhaar, receipts) in seconds.\n\n'
+              '📦 Extended (Latest 500): Scans the latest 500 photos.\n\n'
+              'Full Sync (All $totalCount): Indexes the complete album.',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 100),
+                child: const Text('Quick (100)'),
+              ),
+              if (totalCount > 500)
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, 500),
+                  child: const Text('📦 Latest 500'),
+                ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, totalCount),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+                child: Text('All ($totalCount)'),
+              ),
+            ],
+          ),
+        );
+        if (choice != null) {
+          scanLimit = choice;
+        } else {
+          return;
+        }
+      }
+
+      setState(() {
+        _loading = true;
+        _batchTotal = scanLimit;
+        _batchCurrent = 0;
+        _batchStatus = 'Reading folder "${album.name}" ($scanLimit photos)...';
+      });
+
+      final List<AssetEntity> assets = await album.getAssetListRange(
+        start: 0,
+        end: scanLimit,
+      );
+
+      // Pre-check for incremental sync: skip already-indexed files
+      setState(() {
+        _batchStatus = 'Checking ${assets.length} items in "${album.name}" for updates...';
+      });
+      final checkList = assets.map((a) => {'filename': a.title ?? 'doc.jpg'}).toList();
+      final syncStatus = await _api.checkImagesForSync(checkList);
+      final List<String> missing = (syncStatus['missing'] as List<dynamic>?)?.cast<String>() ?? [];
+      final int alreadySyncedCount = (syncStatus['already_synced_count'] as int?) ?? (assets.length - missing.length);
+
+      final toUpload = assets.where((a) => missing.contains(a.title)).toList();
+
+      if (toUpload.isEmpty) {
+        setState(() {
+          _batchStatus = 'All ${assets.length} items in "${album.name}" are already synced (0 new).';
+        });
+        return;
+      }
+
+      // Priority sort: documents (PAN, Aadhaar, receipts, forms) first, followed by newest photos!
+      toUpload.sort((a, b) {
+        final scoreA = _documentPriorityScore(a.title ?? '');
+        final scoreB = _documentPriorityScore(b.title ?? '');
+        if (scoreA != scoreB) return scoreA.compareTo(scoreB);
+        final dateA = a.createDateTime;
+        final dateB = b.createDateTime;
+        return dateB.compareTo(dateA); // Newest first
+      });
+
+      setState(() {
+        _batchTotal = toUpload.length;
+        _batchCurrent = 0;
+        _batchStatus = 'Syncing ${toUpload.length} new items from "${album.name}" ($alreadySyncedCount already up to date)...';
+      });
+
+      int successCount = 0;
+      int failedCount = 0;
+      const int concurrency = 3;
+
+      for (int i = 0; i < toUpload.length; i += concurrency) {
+        if (!_loading) {
+          debugPrint('Folder sync canceled by user at $i/${toUpload.length}');
+          break;
+        }
+
+        final end = (i + concurrency < toUpload.length) ? i + concurrency : toUpload.length;
+        final chunk = toUpload.sublist(i, end);
+
+        final futures = chunk.map((asset) async {
+          final name = asset.title ?? 'doc_${asset.id}.jpg';
+          try {
+            Uint8List? bytes;
+            try {
+              bytes = await asset.thumbnailDataWithSize(const ThumbnailSize(1600, 1600), quality: 85);
+            } catch (_) {}
+            if (bytes == null || bytes.isEmpty) {
+              final file = await asset.file;
+              if (file != null) {
+                bytes = await file.readAsBytes();
+              }
+            }
+            if (bytes != null && bytes.isNotEmpty) {
+              await _api.uploadImageBytes(bytes, name, asyncProcessing: true);
+              return true;
+            }
+            return false;
+          } catch (e) {
+            debugPrint('Error uploading $name: $e');
+            return false;
+          }
+        }).toList();
+
+        final results = await Future.wait(futures);
+        for (final res in results) {
+          if (res) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _batchCurrent = end;
+            _batchStatus = 'Transferred: $end/${toUpload.length} ($successCount sent, $alreadySyncedCount skipped)...';
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _batchStatus = failedCount > 0
+              ? 'Uploaded $successCount photos ($failedCount skipped). AI background indexing active.'
+              : 'Uploaded $successCount photos. AI background indexing active.';
+        });
+        if (_hasSearched && _searchController.text.trim().isNotEmpty) {
+          _search();
+        }
+        if (successCount > 0) {
+          _startBackgroundSyncPoller(successCount, alreadySyncedCount);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in folder sync: $e');
+      await _syncMobileFolderWithFilePicker();
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _pickAndSyncGallery() async {
+    await _syncFolder();
   }
 
   Future<void> _extractText() async {
@@ -117,7 +634,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final hasVis = res['has_visual_objects'] as bool? ?? false;
         final visSum = res['visual_summary'] as String? ?? '';
         if (hasVis && visSum.isNotEmpty) {
-          _extractedText += '\n\n👁️ Visual Objects Detected: $visSum';
+          _extractedText += '\n\nVisual Objects Detected: $visSum';
         }
       });
     } catch (e) {
@@ -127,9 +644,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _search() async {
-    final q = _searchController.text.trim();
-    if (q.isEmpty) return;
+  @override
+  void initState() {
+    super.initState();
+    _results = [];
+    _hasSearched = false;
+  }
+
+  void _clearSearch() {
+    _searchRequestId++;
+    _searchController.clear();
+    if (mounted) {
+      setState(() {
+        _results = [];
+        _hasSearched = false;
+        _searchType = null;
+        _searchMessage = null;
+        _error = null;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _search([String? queryOverride]) async {
+    final q = queryOverride ?? _searchController.text.trim();
+    if (q.isEmpty) {
+      _clearSearch();
+      return;
+    }
+    final reqId = ++_searchRequestId;
     setState(() {
       _loading = true;
       _error = null;
@@ -137,18 +680,233 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     try {
       final response = await _api.search(q);
+      if (!mounted || reqId != _searchRequestId) return;
+      if (_searchController.text.trim().isEmpty) {
+        _clearSearch();
+        return;
+      }
       setState(() {
         _results = response.results;
         _searchType = response.searchType;
         _searchMessage = response.message;
       });
     } catch (e) {
+      if (!mounted || reqId != _searchRequestId) return;
       setState(() {
         _error = e.toString();
         _results = [];
       });
     } finally {
-      setState(() => _loading = false);
+      if (mounted && reqId == _searchRequestId) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _scanViaCamera() async {
+    setState(() {
+      _error = null;
+      _extractedText = '';
+      _batchStatus = null;
+    });
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 88,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      setState(() {
+        _selectedImageBytes = bytes;
+        _selectedImageName = file.name;
+      });
+      await _extractText();
+    } catch (e) {
+      setState(() => _error = 'Camera capture failed: $e');
+    }
+  }
+
+  void _copyToClipboard(String text, {String? successMessage}) {
+    if (text.trim().isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text.trim()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                successMessage ?? 'Copied to clipboard!',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF15803D),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  Future<void> _launchActionUrl(String urlString) async {
+    try {
+      final uri = Uri.parse(urlString);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _copyToClipboard(urlString, successMessage: 'Copied $urlString');
+      }
+    } catch (_) {
+      _copyToClipboard(urlString, successMessage: 'Copied $urlString');
+    }
+  }
+
+  Future<void> _launchUpiOrCopy(BuildContext context, String upiId) async {
+    try {
+      final uri = Uri.parse('upi://pay?pa=$upiId&pn=Payee&cu=INR');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        _copyToClipboard(upiId, successMessage: 'UPI ID "$upiId" copied! Open GPay/PhonePe to pay.');
+      }
+    } catch (_) {
+      _copyToClipboard(upiId, successMessage: 'UPI ID "$upiId" copied! Open GPay/PhonePe to pay.');
+    }
+  }
+
+  void _showSelectableTextSheet(BuildContext context, String title, String fullText) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (ctx, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_all, color: Color(0xFF2563EB)),
+                    tooltip: 'Copy all text',
+                    onPressed: () {
+                      _copyToClipboard(fullText, successMessage: 'All document text copied!');
+                      Navigator.of(ctx).pop();
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const Text(
+                'Drag touch cursor across words to select, highlight, and copy specific sections:',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+              ),
+              const Divider(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: SelectableText(
+                      fullText.trim().isEmpty ? '(no text extracted from this document)' : fullText,
+                      style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF0F172A)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportPdf(String pdfUrl, String docName) async {
+    try {
+      final uri = Uri.parse(pdfUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _copyToClipboard(pdfUrl, successMessage: 'PDF Link: $pdfUrl');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF Export: $e')),
+      );
+    }
+  }
+
+  Future<void> _exportAllAsMultiPdf() async {
+    if (_results.isEmpty) return;
+    final ids = _results.take(15).map((r) => r.id).toList();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            const SizedBox(width: 10),
+            Text('Compiling ${ids.length} documents into searchable PDF...'),
+          ],
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    try {
+      final pdfBytes = await _api.exportMultiPdf(ids);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Multi-page PDF generated successfully (${(pdfBytes.length / 1024).toStringAsFixed(1)} KB)!'),
+          backgroundColor: const Color(0xFF15803D),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Multi-page export failed: $e')),
+      );
     }
   }
 
@@ -158,6 +916,8 @@ class _HomeScreenState extends State<HomeScreen> {
     String imageName, [
     List<VisualObject> visualObjects = const [],
     int? imageId,
+    String? fullText,
+    String? pdfUrl,
   ]) {
     showDialog(
       context: context,
@@ -173,6 +933,24 @@ class _HomeScreenState extends State<HomeScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             actions: [
+              if (fullText != null && fullText.trim().isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.copy),
+                  tooltip: 'Copy text',
+                  onPressed: () => _copyToClipboard(fullText, successMessage: 'Document text copied!'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.text_fields),
+                  tooltip: 'Live text (drag to select)',
+                  onPressed: () => _showSelectableTextSheet(context, imageName, fullText),
+                ),
+              ],
+              if (pdfUrl != null && pdfUrl.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  tooltip: 'Export searchable PDF',
+                  onPressed: () => _exportPdf(pdfUrl, imageName),
+                ),
               if (imageId != null)
                 IconButton(
                   icon: const Icon(Icons.hub_outlined),
@@ -190,30 +968,40 @@ class _HomeScreenState extends State<HomeScreen> {
               panEnabled: true,
               boundaryMargin: const EdgeInsets.all(20),
               minScale: 0.5,
-              maxScale: 4.0,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return const CircularProgressIndicator(color: Colors.white);
-                    },
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.broken_image,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
-                  ),
-                  if (visualObjects.isNotEmpty)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: BoundingBoxOverlayPainter(visualObjects: visualObjects),
+              maxScale: 5.0,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Stack(
+                    children: [
+                      Image.network(
+                        imageUrl,
+                        cacheWidth: 1600,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const SizedBox(
+                            width: 320,
+                            height: 320,
+                            child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) => const SizedBox(
+                          width: 320,
+                          height: 320,
+                          child: Center(
+                            child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                          ),
+                        ),
                       ),
-                    ),
-                ],
+                      if (visualObjects.isNotEmpty)
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: BoundingBoxOverlayPainter(visualObjects: visualObjects),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -493,6 +1281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       rel.imageUrl,
                       width: 56,
                       height: 72,
+                      cacheWidth: 120,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         width: 56,
@@ -558,36 +1347,62 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showServerSettingsDialog(BuildContext context) {
     final controller = TextEditingController(
-      text: ApiService.baseUrl.replaceAll('http://', '').replaceAll(':8000', ''),
+      text: ApiService.baseUrl,
     );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.wifi_tethering, color: Color(0xFF2563EB)),
+            Icon(Icons.cloud_sync, color: Color(0xFF4F46E5)),
             SizedBox(width: 8),
-            Text('Server IP Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Server Connection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Active Backend Server URL:\n${ApiService.baseUrl}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Enter PC IP (e.g. 192.168.1.4)',
-                hintText: '192.168.1.4',
-                border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Active Backend Server:\n${ApiService.baseUrl}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Server URL or LAN IP',
+                  hintText: 'https://golf-kitchen-tri-pst.trycloudflare.com',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Quick Switch:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.cloud_done, size: 14, color: Color(0xFF4F46E5)),
+                    label: const Text('Live Cloud (Friends)', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      controller.text = 'https://golf-kitchen-tri-pst.trycloudflare.com';
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.wifi, size: 14, color: Color(0xFF0284C7)),
+                    label: const Text('Local Wi-Fi (192.168.1.3)', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      controller.text = 'http://192.168.1.3:8000';
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -599,6 +1414,13 @@ class _HomeScreenState extends State<HomeScreen> {
               if (controller.text.trim().isNotEmpty) {
                 ApiService.setCustomIp(controller.text);
                 setState(() => _error = null);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Connected to: ${ApiService.baseUrl}'),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: const Color(0xFF10B981),
+                  ),
+                );
               }
               Navigator.of(ctx).pop();
             },
@@ -609,68 +1431,330 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showUserAccountDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _UserAccountSheet(
+        api: _api,
+        onUserChanged: () {
+          _clearSearch();
+          setState(() {
+            _error = null;
+          });
+          if (_searchController.text.trim().isNotEmpty) {
+            _search();
+          }
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _syncPollerTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  Widget _buildFilterChip(String label, String queryTerm) {
+    final currentQ = _searchController.text.trim().toLowerCase();
+    final isSelected = queryTerm.isNotEmpty && currentQ == queryTerm.toLowerCase();
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF1E293B),
+          ),
+        ),
+        selected: isSelected,
+        selectedColor: const Color(0xFF4F46E5),
+        backgroundColor: const Color(0xFFF1F5F9),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFCBD5E1),
+            width: 1.2,
+          ),
+        ),
+        showCheckmark: false,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        onSelected: (_) {
+          if (isSelected) {
+            _clearSearch();
+          } else {
+            _searchController.text = queryTerm;
+            _search(queryTerm);
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Document Search'),
-        centerTitle: true,
-        elevation: 2,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.document_scanner, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'DocuLens AI',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: Color(0xFF0F172A), letterSpacing: -0.3),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: const Text(
+                            'PRO',
+                            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Text(
+                    'Multi-Modal Scanner',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_ethernet),
-            tooltip: 'Server Connection Settings',
-            onPressed: () => _showServerSettingsDialog(context),
+          // --- Multi-User Tenant Profile Chip ---
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: InkWell(
+              onTap: () => _showUserAccountDialog(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: ApiService.isLoggedIn
+                        ? (ApiService.isCurrentUserAdmin
+                            ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                            : [const Color(0xFF4F46E5), const Color(0xFF6366F1)])
+                        : [const Color(0xFFF1F5F9), const Color(0xFFE2E8F0)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: ApiService.isLoggedIn
+                      ? [
+                          BoxShadow(
+                            color: (ApiService.isCurrentUserAdmin
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF4F46E5))
+                                .withValues(alpha: 0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      ApiService.isLoggedIn
+                          ? (ApiService.isCurrentUserAdmin ? Icons.admin_panel_settings : Icons.lock_person)
+                          : Icons.account_circle_outlined,
+                      size: 13,
+                      color: ApiService.isLoggedIn ? Colors.white : const Color(0xFF475569),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ApiService.isLoggedIn
+                          ? '${ApiService.currentUsername} (#${ApiService.currentUserId})'
+                          : 'Guest Vault',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: ApiService.isLoggedIn ? Colors.white : const Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: InkWell(
+              onTap: () => _showServerSettingsDialog(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    const Text(
+                      'Online',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // --- Document Ingestion Card ---
                   Card(
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Upload & Ingest Gallery Photos / Documents',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.auto_awesome, color: Color(0xFF2563EB), size: 18),
+                              ),
+                              const SizedBox(width: 8),
+                              const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Scan & Ingest Documents',
+                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                  ),
+                                  Text(
+                                    '4-Point Dewarping + Magic Color shadow removal',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           Row(
                             children: [
                               Expanded(
+                                flex: 4,
                                 child: ElevatedButton.icon(
-                                  onPressed: _loading ? null : _pickImage,
-                                  icon: const Icon(Icons.photo_outlined, size: 18),
-                                  label: const Text('SINGLE IMAGE', style: TextStyle(fontSize: 12)),
+                                  onPressed: _loading ? null : _scanViaCamera,
+                                  icon: const Icon(Icons.camera_alt, size: 17),
+                                  label: const Text('CAM SCAN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4F46E5),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Expanded(
+                                flex: 4,
+                                child: OutlinedButton.icon(
+                                  onPressed: _loading ? null : _pickImage,
+                                  icon: const Icon(Icons.photo_library_outlined, size: 17, color: Color(0xFF334155)),
+                                  label: const Text('GALLERY', style: TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                flex: 4,
                                 child: ElevatedButton.icon(
-                                  onPressed: _loading ? null : _pickAndSyncGallery,
-                                  icon: const Icon(Icons.collections_outlined, size: 18),
-                                  label: const Text('SYNC GALLERY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  onPressed: (_loading && _batchTotal > 0)
+                                      ? () {
+                                          setState(() {
+                                            _loading = false;
+                                            _batchStatus = '⚠️ Sync stopped by user.';
+                                          });
+                                        }
+                                      : (_loading ? null : _syncFolder),
+                                  icon: Icon(
+                                    (_loading && _batchTotal > 0) ? Icons.stop_circle_outlined : Icons.folder_open,
+                                    size: 17,
+                                  ),
+                                  label: Text(
+                                    (_loading && _batchTotal > 0) ? 'STOP' : 'SYNC FOLDER',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF15803D),
+                                    backgroundColor: (_loading && _batchTotal > 0)
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF15803D),
                                     foregroundColor: Colors.white,
+                                    elevation: 0,
                                   ),
                                 ),
                               ),
@@ -681,9 +1765,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: _batchStatus!.startsWith('✅') ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                                color: _batchStatus!.startsWith('') ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _batchStatus!.startsWith('✅') ? const Color(0xFF86EFAC) : const Color(0xFF93C5FD)),
+                                border: Border.all(color: _batchStatus!.startsWith('') ? const Color(0xFF86EFAC) : const Color(0xFF93C5FD)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,7 +1777,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: _batchStatus!.startsWith('✅') ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
+                                      color: _batchStatus!.startsWith('') ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
                                     ),
                                   ),
                                   if (_batchTotal > 0 && _batchCurrent <= _batchTotal && _loading) ...[
@@ -709,57 +1793,123 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                           if (_selectedImageBytes != null) ...[
-                            const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.memory(
-                                _selectedImageBytes!,
-                                height: 160,
-                                fit: BoxFit.contain,
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton.icon(
-                              onPressed: _loading ? null : _extractText,
-                              icon: _loading
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.document_scanner),
-                              label: Text(_loading ? 'PROCESSING OCR WITH AI...' : 'EXTRACT TEXT & INDEX'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primaryContainer,
-                              ),
-                            ),
-                            if (_loading) ...[
-                              const SizedBox(height: 8),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5)),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Extracting deep-learning text & indexing...',
-                                    style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontStyle: FontStyle.italic),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(
+                                      _selectedImageBytes!,
+                                      height: 160,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEEF2FF),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFC7D2FE)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.auto_fix_high, size: 12, color: Color(0xFF4F46E5)),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '4-Point Dewarping & Magic Color Ready',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ElevatedButton.icon(
+                                    onPressed: _loading ? null : _extractText,
+                                    icon: _loading
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                          )
+                                        : const Icon(Icons.document_scanner),
+                                    label: Text(_loading ? 'ENHANCING & EXTRACTING OCR...' : 'EXTRACT TEXT & INDEX WITH AI'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4F46E5),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
                           ],
                           if (_extractedText.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              child: Text(
-                                _extractedText,
-                                style: const TextStyle(fontSize: 13),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'Scanned & Indexed to Gallery',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                          ),
+                                        ],
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          _copyToClipboard(_extractedText, successMessage: 'OCR Text Copied!');
+                                        },
+                                        child: const Text('Copy Text', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _extractedText.length > 140 && !_showFullExtractedText
+                                        ? '${_extractedText.substring(0, 140)}...'
+                                        : _extractedText,
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.4),
+                                  ),
+                                  if (_extractedText.length > 140)
+                                    GestureDetector(
+                                      onTap: () => setState(() => _showFullExtractedText = !_showFullExtractedText),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Text(
+                                          _showFullExtractedText ? '▲ Show less' : '▼ Show full text (${_extractedText.split('\n').length} lines)',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -768,63 +1918,141 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // --- Search Box Card ---
+                  // --- Modern Search Box Card ---
                   Card(
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Multi-Modal Search (Text + Visual)',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          const Row(
+                            children: [
+                              Icon(Icons.search, size: 18, color: Color(0xFF4F46E5)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Multi-Modal Search Engine',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  style: const TextStyle(fontSize: 16, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+                                  decoration: InputDecoration(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                    hintText: 'Search text, names, numbers, or QR...',
+                                    hintStyle: const TextStyle(fontSize: 14.5, color: Color(0xFF94A3B8)),
+                                    prefixIcon: const Icon(Icons.search, size: 24, color: Color(0xFF4F46E5)),
+                                    suffixIcon: IconButton(
+                                      icon: const Icon(Icons.clear, size: 20),
+                                      tooltip: 'Clear search',
+                                      onPressed: _clearSearch,
+                                    ),
+                                  ),
+                                  onSubmitted: (_) => _search(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: () => _search(),
+                                icon: const Icon(Icons.search, size: 19, color: Colors.white),
+                                label: const Text('Search', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4F46E5),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
-                          TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              hintText: 'Search text, topics, or "documents with qr code"...',
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() {});
-                                      },
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildFilterChip('Receipts & Bills', 'receipt'),
+                                _buildFilterChip('Identity Cards', 'id'),
+                                _buildFilterChip('QR & Barcode', 'qr'),
+                                _buildFilterChip('Academic & Exams', 'exam'),
+                                _buildFilterChip('Notes & Text', 'notes'),
+                              ],
                             ),
-                            onChanged: (_) => setState(() {}),
-                            onSubmitted: (_) => _search(),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: _search,
-                            icon: const Icon(Icons.search),
-                            label: const Text('SEARCH DOCUMENTS'),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // --- Results Section ---
-                  if (_results.isNotEmpty) ...[
+                  // --- Initial Empty Prompt (when user hasn't searched yet) ---
+                  if (!_hasSearched && _results.isEmpty && _error == null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.search, size: 44, color: Color(0xFF6366F1)),
+                          SizedBox(height: 12),
+                          Text(
+                            'Search Your Documents',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Type text, numbers, names, or categories to find documents in your vault.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // --- Results Section (only displayed on search) ---
+                  if (_hasSearched && _results.isNotEmpty) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${_results.length} Relevant ${_results.length == 1 ? "Document" : "Documents"} Found',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            '${_results.length} Matches Found',
+                            style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (_results.length >= 2) ...[
+                          ElevatedButton.icon(
+                            onPressed: _exportAllAsMultiPdf,
+                            icon: const Icon(Icons.picture_as_pdf, size: 14),
+                            label: const Text('ALL PDF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         if (_searchType != null)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -932,10 +2160,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            'Try rephrasing your search or checking related academic topics.',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF78350F)),
+                          Text(
+                            'No documents found matching "${_searchController.text.trim()}".',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF78350F)),
                             textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            onPressed: _pickAndSyncGallery,
+                            icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                            label: const Text('SYNC MORE GALLERY PHOTOS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              elevation: 0,
+                            ),
                           ),
                         ],
                       ),
@@ -965,6 +2206,197 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+          if (_loading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.45),
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 28),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFF4F46E5)),
+                      const SizedBox(height: 18),
+                      Text(
+                        _batchStatus ?? 'Processing with AI...',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                      ),
+                      if (_batchTotal > 0) ...[
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: _batchTotal > 0 ? (_batchCurrent / _batchTotal) : null,
+                            backgroundColor: const Color(0xFFE2E8F0),
+                            color: const Color(0xFF15803D),
+                            minHeight: 8,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '$_batchCurrent of $_batchTotal photos (${((_batchCurrent / _batchTotal) * 100).toInt()}%)',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _loading = false;
+                              _batchStatus = '⚠️ Sync stopped by user.';
+                            });
+                          },
+                          icon: const Icon(Icons.stop_circle, color: Colors.white, size: 18),
+                          label: const Text('STOP SYNC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmartActionChips(BuildContext context, SearchResult result) {
+    final chips = <Widget>[];
+
+    // 1. Phone numbers (Indian 10-digit mobile or standard formats)
+    final phoneRegex = RegExp(r'\b(?:(?:\+|0{0,2})91[\s.-]?)?([6-9]\d{9})\b');
+    final phoneMatches = phoneRegex.allMatches('${result.matchedText} ${result.previewSnippet}');
+    final phones = <String>{};
+    for (final m in phoneMatches) {
+      final p = m.group(1);
+      if (p != null && p.length == 10) phones.add(p);
+    }
+    for (final p in phones.take(2)) {
+      chips.add(
+        ActionChip(
+          avatar: const Icon(Icons.phone, size: 14, color: Color(0xFF15803D)),
+          label: Text('Call $p', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+          backgroundColor: const Color(0xFFDCFCE7),
+          side: const BorderSide(color: Color(0xFF86EFAC)),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          onPressed: () => _launchActionUrl('tel:$p'),
+        ),
+      );
+    }
+
+    // 2. Email addresses
+    final emailRegex = RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b');
+    final emailMatches = emailRegex.allMatches('${result.matchedText} ${result.previewSnippet}');
+    final emails = <String>{};
+    for (final m in emailMatches) {
+      emails.add(m.group(0)!.toLowerCase());
+    }
+    for (final e in emails.take(2)) {
+      chips.add(
+        ActionChip(
+          avatar: const Icon(Icons.email_outlined, size: 14, color: Color(0xFF1D4ED8)),
+          label: Text('Email $e', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8))),
+          backgroundColor: const Color(0xFFEFF6FF),
+          side: const BorderSide(color: Color(0xFF93C5FD)),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          onPressed: () => _launchActionUrl('mailto:$e'),
+        ),
+      );
+    }
+
+    // 3. UPI IDs (OCR Text, QR Payloads, & Extracted Entities)
+    final upiRegex = RegExp(r'\b([a-zA-Z0-9.\-_]{2,32}@(okhdfcbank|okaxis|oksbi|okicici|paytm|ybl|ibl|upi|axl|apl|sbi|hdfcbank))\b', caseSensitive: false);
+    final upiMatches = upiRegex.allMatches('${result.matchedText} ${result.previewSnippet} ${result.qrPayload}');
+    final upis = <String>{};
+    if (result.entities != null && result.entities!['qr_metadata'] is List) {
+      for (final qm in (result.entities!['qr_metadata'] as List)) {
+        if (qm is Map && qm['vpa'] != null && qm['vpa'].toString().trim().isNotEmpty) {
+          upis.add(qm['vpa'].toString().trim());
+        }
+      }
+    }
+    for (final m in upiMatches) {
+      upis.add(m.group(0)!);
+    }
+    for (final u in upis.take(2)) {
+      chips.add(
+        ActionChip(
+          avatar: const Icon(Icons.payments_outlined, size: 14, color: Color(0xFF7E22CE)),
+          label: Text('Pay UPI: $u', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF7E22CE))),
+          backgroundColor: const Color(0xFFFAF5FF),
+          side: const BorderSide(color: Color(0xFFD8B4FE)),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          onPressed: () => _launchUpiOrCopy(context, u),
+        ),
+      );
+    }
+
+    // 4. Web URLs (OCR Text, QR Payloads, & Extracted Entities)
+    final urls = <String>{};
+    if (result.entities != null && result.entities!['urls'] is List) {
+      for (final u in (result.entities!['urls'] as List)) {
+        if (u != null && u.toString().trim().isNotEmpty) {
+          urls.add(u.toString().trim());
+        }
+      }
+    }
+    final urlRegex = RegExp(
+      r'\b(?:https?://|www\.)[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s,;<>]*)?|\b(?:[a-zA-Z0-9-]+\.)+(?:com|in|org|net|edu|gov\.in|ac\.in|nic\.in|io|ai|co|app|gle|me|tech|xyz)(?:/[^\s,;<>]*)?\b',
+      caseSensitive: false,
+    );
+    final urlMatches = urlRegex.allMatches('${result.matchedText} ${result.previewSnippet} ${result.qrPayload}');
+    for (final m in urlMatches) {
+      var rawU = m.group(0)!.trim();
+      while (rawU.isNotEmpty && (rawU.endsWith('.') || rawU.endsWith(',') || rawU.endsWith(';') || rawU.endsWith(')') || rawU.endsWith('"') || rawU.endsWith("'"))) {
+        rawU = rawU.substring(0, rawU.length - 1);
+      }
+      if (!rawU.toLowerCase().startsWith('http://') && !rawU.toLowerCase().startsWith('https://')) {
+        rawU = 'https://${rawU.toLowerCase().startsWith("www.") ? rawU.substring(4) : rawU}';
+      }
+      urls.add(rawU);
+    }
+
+    for (final u in urls.take(3)) {
+      String displayHost = u.replaceFirst(RegExp(r'^https?://(www\.)?'), '');
+      if (displayHost.length > 22) {
+        displayHost = '${displayHost.substring(0, 20)}...';
+      }
+      chips.add(
+        ActionChip(
+          avatar: const Icon(Icons.language, size: 14, color: Color(0xFF0369A1)),
+          label: Text('Open $displayHost', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0369A1))),
+          backgroundColor: const Color(0xFFE0F2FE),
+          side: const BorderSide(color: Color(0xFF7DD3FC)),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          onPressed: () => _launchActionUrl(u),
+        ),
+      );
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: chips,
+      ),
     );
   }
 
@@ -1116,7 +2548,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (isKeyword)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0FDF4),
                       borderRadius: BorderRadius.circular(6),
@@ -1125,14 +2557,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF15803D)),
+                        const Icon(Icons.check_circle_outline, size: 15, color: Color(0xFF15803D)),
                         const SizedBox(width: 4),
                         Text(
                           hasScore
                               ? 'Exact match: ${result.similarityScore!.toStringAsFixed(2)}'
                               : 'Exact match: 1.00',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF15803D),
                           ),
@@ -1142,7 +2574,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 else if (isMultimodal)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEF2FF),
                       borderRadius: BorderRadius.circular(6),
@@ -1151,14 +2583,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.auto_awesome, size: 14, color: Color(0xFF4F46E5)),
+                        const Icon(Icons.auto_awesome, size: 15, color: Color(0xFF4F46E5)),
                         const SizedBox(width: 4),
                         Text(
                           hasScore
                               ? 'Multi-modal: ${result.similarityScore!.toStringAsFixed(2)}'
                               : 'Multi-modal match',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF4F46E5),
                           ),
@@ -1168,7 +2600,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 else if (isVisual)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFAF5FF),
                       borderRadius: BorderRadius.circular(6),
@@ -1177,14 +2609,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.qr_code_scanner, size: 14, color: Color(0xFF7E22CE)),
+                        const Icon(Icons.qr_code_scanner, size: 15, color: Color(0xFF7E22CE)),
                         const SizedBox(width: 4),
                         Text(
                           hasScore
                               ? 'Visual match: ${result.similarityScore!.toStringAsFixed(2)}'
                               : 'Visual match',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF7E22CE),
                           ),
@@ -1194,7 +2626,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(6),
@@ -1203,14 +2635,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.psychology, size: 14, color: Color(0xFF1D4ED8)),
+                        const Icon(Icons.psychology, size: 15, color: Color(0xFF1D4ED8)),
                         const SizedBox(width: 4),
                         Text(
                           hasScore
                               ? 'Semantic match: ${result.similarityScore!.toStringAsFixed(2)}'
                               : 'Semantic match',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1D4ED8),
                           ),
@@ -1220,25 +2652,123 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
+            if (result.matchReason != null && result.matchReason!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      result.matchReason!.toLowerCase().contains('qr')
+                          ? Icons.qr_code_2
+                          : Icons.lightbulb_outline,
+                      size: 14,
+                      color: const Color(0xFF475569),
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        result.matchReason!,
+                        style: const TextStyle(
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (result.indexingStatus == 'indexing') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'AI Deep Indexing in progress (OCR / CLIP / NER)...',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (result.indexingStatus == 'queued') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.hourglass_top_rounded, size: 13, color: Color(0xFF64748B)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Queued for AI Deep Processing',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
 
             // Clickable Image Preview with Bounding Box Overlay & "Tap to zoom" hint
             Center(
               child: InkWell(
-                onTap: () => _openImageZoom(context, result.imageUrl, result.imageName, result.visualObjects, result.id),
-                borderRadius: BorderRadius.circular(8),
+                onTap: () => _openImageZoom(
+                  context,
+                  result.imageUrl,
+                  result.imageName,
+                  result.visualObjects,
+                  result.id,
+                  result.matchedText,
+                  result.pdfUrl,
+                ),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  height: 220,
-                  width: 165, // 3:4 aspect ratio (900x1200 document)
+                  height: 250,
+                  width: 190, // 3:4 aspect ratio
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -1246,16 +2776,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     alignment: Alignment.bottomRight,
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(7),
+                        borderRadius: BorderRadius.circular(9),
                         child: Image.network(
                           result.imageUrl,
-                          height: 220,
-                          width: 165,
-                          cacheWidth: 330,
+                          height: 250,
+                          width: 190,
+                          cacheWidth: 380,
                           fit: BoxFit.fill,
                           errorBuilder: (context, error, stackTrace) => Container(
-                            height: 220,
-                            width: 165,
+                            height: 250,
+                            width: 190,
                             color: Colors.grey.shade200,
                             alignment: Alignment.center,
                             child: const Icon(Icons.broken_image, color: Colors.grey),
@@ -1269,20 +2799,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       Container(
-                        margin: const EdgeInsets.all(4),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        margin: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(0, 0, 0, 0.75),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.zoom_in, color: Colors.white, size: 13),
-                            SizedBox(width: 3),
+                            Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                            SizedBox(width: 4),
                             Text(
-                              'Zoom',
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                              'Tap to Zoom',
+                              style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -1292,7 +2822,60 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            // Smart One-Tap Action Chips (Call, Email, Pay UPI, Open Link)
+            _buildSmartActionChips(context, result),
+            const SizedBox(height: 8),
+
+            // Quick Action Toolbar: COPY TEXT, DRAG TO COPY, EXPORT PDF
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _copyToClipboard(
+                      result.matchedText.isNotEmpty ? result.matchedText : displaySnippet,
+                      successMessage: 'Document text copied!',
+                    ),
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('COPY TEXT', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      minimumSize: Size.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _showSelectableTextSheet(
+                      context,
+                      result.imageName,
+                      result.matchedText.isNotEmpty ? result.matchedText : displaySnippet,
+                    ),
+                    icon: const Icon(Icons.text_fields, size: 16),
+                    label: const Text('DRAG TO COPY', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      minimumSize: Size.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (result.pdfUrl != null && result.pdfUrl!.isNotEmpty)
+                    ElevatedButton.icon(
+                      onPressed: () => _exportPdf(result.pdfUrl!, result.imageName),
+                      icon: const Icon(Icons.picture_as_pdf, size: 16),
+                      label: const Text('EXPORT PDF', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                        minimumSize: Size.zero,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
 
             // Phase 3 Visual Objects Badge Panel
             if (result.visualObjects.isNotEmpty) ...[
@@ -1312,7 +2895,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Icon(Icons.qr_code_scanner, size: 16, color: Color(0xFF0284C7)),
                         const SizedBox(width: 6),
                         Text(
-                          '👁️ Visual Objects Detected (${result.visualObjects.length})',
+                          'Visual Objects Detected (${result.visualObjects.length})',
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,
@@ -1633,6 +3216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         rel.imageUrl,
                         width: 50,
                         height: 66,
+                        cacheWidth: 100,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: 50,
@@ -1713,14 +3297,20 @@ class BoundingBoxOverlayPainter extends CustomPainter {
       ..color = const Color(0x2A00E5FF) // Subtle transparent Cyan fill
       ..style = PaintingStyle.fill;
 
+    // High-visibility luminous yellow highlighter for text matches in crowded documents
     final yellowBoxPaint = Paint()
-      ..color = const Color(0xFFFFD600) // Vibrant Gold Yellow
+      ..color = const Color(0xFFFFB300) // Deep Amber Yellow contour border
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
 
     final yellowFillPaint = Paint()
-      ..color = const Color(0x45FFD600) // Vibrant transparent Yellow highlight fill
+      ..color = const Color(0x60FFE600) // Radiant Fluorescent Yellow highlight fill
       ..style = PaintingStyle.fill;
+
+    final yellowGlowPaint = Paint()
+      ..color = const Color(0x35FFEA00) // Soft outer ambient glow for crowded documents
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5;
 
     final cornerPaint = Paint()
       ..color = const Color(0xFFFFEA00) // Bright Yellow Corner Markers
@@ -1730,19 +3320,33 @@ class BoundingBoxOverlayPainter extends CustomPainter {
 
     for (final obj in visualObjects) {
       final isTextHighlight = obj.type == 'text_highlight';
-      final rect = Rect.fromLTWH(
+      var rect = Rect.fromLTWH(
         obj.normX * size.width,
         obj.normY * size.height,
         obj.normW * size.width,
         obj.normH * size.height,
       );
 
+      // In crowded documents with dense text lines, ensure minimum visibility
+      if (isTextHighlight) {
+        if (rect.height < 10.0 || rect.width < 14.0) {
+          rect = Rect.fromCenter(
+            center: rect.center,
+            width: rect.width < 14.0 ? 14.0 : rect.width + 2.0,
+            height: rect.height < 10.0 ? 10.0 : rect.height + 2.0,
+          );
+        }
+      }
+
       final currentFill = isTextHighlight ? yellowFillPaint : cyanFillPaint;
       final currentBox = isTextHighlight ? yellowBoxPaint : cyanBoxPaint;
 
-      // Draw bounding box rectangle & fill
-      canvas.drawRect(rect, currentFill);
-      canvas.drawRect(rect, currentBox);
+      // Draw bounding box glow, fill & contour rectangle
+      if (isTextHighlight) {
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)), yellowGlowPaint);
+      }
+      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)), currentFill);
+      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)), currentBox);
 
       // Draw corner brackets
       final cornerLen = (rect.width * 0.25).clamp(4.0, 14.0);
@@ -1776,3 +3380,605 @@ class _HighlightSpan {
   final int end;
   _HighlightSpan({required this.start, required this.end});
 }
+
+class _UserAccountSheet extends StatefulWidget {
+  final ApiService api;
+  final VoidCallback onUserChanged;
+
+  const _UserAccountSheet({
+    required this.api,
+    required this.onUserChanged,
+  });
+
+  @override
+  State<_UserAccountSheet> createState() => _UserAccountSheetState();
+}
+
+class _UserAccountSheetState extends State<_UserAccountSheet> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isAdminReg = false;
+  bool _loading = false;
+  String? _statusMessage;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin(String username, String password) async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+      _statusMessage = null;
+    });
+    try {
+      await widget.api.login(username, password);
+      widget.onUserChanged();
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Signed in as $username (Vault #${ApiService.currentUserId})';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🔐 Authenticated as $username (Vault #${ApiService.currentUserId})'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    final u = _usernameController.text.trim();
+    final p = _passwordController.text;
+    if (u.isEmpty || p.isEmpty) {
+      setState(() => _errorMessage = 'Please enter both username and password.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+      _statusMessage = null;
+    });
+    try {
+      await widget.api.register(u, p, isAdmin: _isAdminReg);
+      // Automatically login after successful registration
+      await widget.api.login(u, p);
+      widget.onUserChanged();
+      if (mounted) {
+        setState(() {
+          _statusMessage = '🎉 Registered & Signed in as $u (Vault #${ApiService.currentUserId})';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🎉 Account created! Signed into Vault #${ApiService.currentUserId}'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _handleLogout() {
+    widget.api.logout();
+    widget.onUserChanged();
+    setState(() {
+      _statusMessage = 'Reverted to Guest Public Vault';
+      _errorMessage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Signed out. Active in Public Guest Vault.'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLogged = ApiService.isLoggedIn;
+    final currentU = ApiService.currentUsername;
+    final currentId = ApiService.currentUserId;
+    final isAdmin = ApiService.isCurrentUserAdmin;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Title Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.shield_outlined, color: Color(0xFF4F46E5), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tenant Vault & Privacy Security',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                          Text(
+                            isLogged
+                                ? 'Active: $currentU (Vault #$currentId) · ${isAdmin ? 'Admin RBAC' : 'Tenant Isolated'}'
+                                : 'Active: Public Guest Mode (Unauthenticated)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isLogged ? (isAdmin ? const Color(0xFF059669) : const Color(0xFF4F46E5)) : const Color(0xFF64748B),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // TabBar Navigation
+              TabBar(
+                controller: _tabController,
+                labelColor: const Color(0xFF4F46E5),
+                unselectedLabelColor: const Color(0xFF64748B),
+                indicatorColor: const Color(0xFF4F46E5),
+                indicatorWeight: 2.5,
+                tabs: const [
+                  Tab(icon: Icon(Icons.swap_horiz, size: 18), text: 'Switch Vault'),
+                  Tab(icon: Icon(Icons.person_add_alt_1, size: 18), text: 'Sign In / Register'),
+                  Tab(icon: Icon(Icons.lock_clock_outlined, size: 18), text: 'Cloud Privacy'),
+                ],
+              ),
+
+              // Tab Content Area
+              SizedBox(
+                height: 340,
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildSwitchTab(isLogged, currentU, currentId, isAdmin),
+                    _buildAuthTab(),
+                    _buildPrivacyTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchTab(bool isLogged, String currentU, int currentId, bool isAdmin) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Active status badge
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isLogged ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isLogged ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isLogged ? Icons.verified_user : Icons.info_outline,
+                  color: isLogged ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isLogged
+                            ? 'Logged In: $currentU (Vault #$currentId)'
+                            : 'Guest Mode (Public Vault)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                      ),
+                      Text(
+                        isLogged
+                            ? 'Row-Level Security active. User B cannot see your documents.'
+                            : 'All public demo images visible. Sign in to isolate your documents.',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isLogged)
+                  TextButton(
+                    onPressed: _handleLogout,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('LOGOUT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          const Text(
+            'Quick-Switch Demo Tenants (Instant Testing):',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+          ),
+          const SizedBox(height: 8),
+
+          // Preset 1: Alice (Admin)
+          _buildPresetTile(
+            title: 'Alice (Admin Tenant · Vault #1)',
+            subtitle: 'Owns 367 demo library documents · Full administrative access',
+            icon: Icons.admin_panel_settings,
+            iconColor: const Color(0xFF059669),
+            isSelected: isLogged && currentU == 'alice',
+            onTap: () => _handleLogin('alice', 'password123'),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Preset 2: Bob (Isolated Tenant)
+          _buildPresetTile(
+            title: 'Bob (Isolated User · Private Vault)',
+            subtitle: 'Clean tenant · Cannot see Alice\'s documents · Strict IDOR protection',
+            icon: Icons.lock_person,
+            iconColor: const Color(0xFF4F46E5),
+            isSelected: isLogged && currentU.startsWith('isolated_bob') || currentU == 'bob',
+            onTap: () => _handleLogin('bob', 'BobPassword123!'),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Preset 3: Guest Mode
+          _buildPresetTile(
+            title: 'Guest Mode (Public Shared Vault)',
+            subtitle: 'Unauthenticated testing · Standard public read access',
+            icon: Icons.public,
+            iconColor: const Color(0xFF64748B),
+            isSelected: !isLogged,
+            onTap: _handleLogout,
+          ),
+
+          if (_statusMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _statusMessage!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPresetTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: _loading ? null : onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? iconColor.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? iconColor : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? iconColor : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: iconColor, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAuthTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _usernameController,
+            decoration: const InputDecoration(
+              labelText: 'Username',
+              prefixIcon: Icon(Icons.person_outline, size: 18),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(Icons.lock_outline, size: 18),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Checkbox(
+                value: _isAdminReg,
+                onChanged: (val) => setState(() => _isAdminReg = val ?? false),
+              ),
+              const Expanded(
+                child: Text(
+                  'Register as Admin (Role-Based Access Control)',
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleLogin(_usernameController.text, _passwordController.text),
+                    icon: const Icon(Icons.login, size: 16),
+                    label: const Text('SIGN IN'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _handleRegister,
+                    icon: const Icon(Icons.person_add, size: 16),
+                    label: const Text('REGISTER'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          if (_statusMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _statusMessage!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Production Cloud Deployment Privacy Protections',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 10),
+          _buildPrivacyRow(
+            icon: Icons.public_off,
+            color: const Color(0xFF10B981),
+            title: '1. Data Residency (100% On-Premise / Edge)',
+            detail: 'Zero cloud API leakage. EasyOCR, sentence-transformers & MobileNet run entirely on your private cluster without sending images to Google/OpenAI.',
+          ),
+          const SizedBox(height: 10),
+          _buildPrivacyRow(
+            icon: Icons.shield,
+            color: const Color(0xFF2563EB),
+            title: '2. Multi-Tenant Vault Isolation',
+            detail: 'JWT Bearer token verification. SQLite Row-Level Security scopes every query strictly to user_id. User A cannot view or search User B\'s documents.',
+          ),
+          const SizedBox(height: 10),
+          _buildPrivacyRow(
+            icon: Icons.enhanced_encryption,
+            color: const Color(0xFF7C3AED),
+            title: '3. Storage at Rest (AES-256 Envelope)',
+            detail: 'Files in uploads/ are partitioned per tenant (uploads/user_{id}/) and encrypted at rest with AES-256-GCM. Physical disk theft yields unreadable ciphertext.',
+          ),
+          const SizedBox(height: 10),
+          _buildPrivacyRow(
+            icon: Icons.visibility_off,
+            color: const Color(0xFFD97706),
+            title: '4. Real-Time PII Masking & Redaction',
+            detail: 'Aadhaar numbers (XXXX-XXXX-1234), PAN cards, and signatures are automatically detected and masked in viewer & export outputs unless authorized.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String detail,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

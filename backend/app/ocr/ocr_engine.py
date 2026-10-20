@@ -11,6 +11,7 @@ from typing import Union, List, Dict, Any, Optional
 import cv2
 import easyocr
 import numpy as np
+import torch
 
 from app.ocr.quality import assess_image_quality
 from app.ocr.preprocessing import preprocess_for_ocr
@@ -21,14 +22,17 @@ _readers: Dict[tuple, easyocr.Reader] = {}
 
 
 def get_ocr_reader(languages: Optional[List[str]] = None) -> easyocr.Reader:
-    """Singleton getter for EasyOCR Reader with multi-language caching."""
+    """Singleton getter for EasyOCR Reader with multi-language caching (English, Hindi, Marathi)."""
     global _readers
-    target_langs = tuple(sorted(languages)) if languages else ("en",)
+    target_langs = tuple(sorted(languages)) if languages else ("en", "hi", "mr")
     if target_langs not in _readers:
         try:
             _readers[target_langs] = easyocr.Reader(list(target_langs), gpu=False, verbose=False)
         except Exception:
-            _readers[target_langs] = easyocr.Reader(["en"], gpu=False, verbose=False)
+            try:
+                _readers[target_langs] = easyocr.Reader(["en", "mr"], gpu=False, verbose=False)
+            except Exception:
+                _readers[target_langs] = easyocr.Reader(["en"], gpu=False, verbose=False)
     return _readers[target_langs]
 
 
@@ -200,102 +204,139 @@ def extract_text_adaptive(
         scaled_gray = scaled.copy()
     quality_report = assess_image_quality(scaled_gray)
 
-    # Determine languages and reader
-    use_mr = bool(languages and "mr" in languages)
-    reader = get_ocr_reader(["en", "mr"] if use_mr else (languages or ["en"]))
+    # Step 1B: Document 4-point Perspective Dewarping & Magic Color Shadow Removal
+    preprocessing_applied = []
+    try:
+        from app.ocr.document_enhancer import enhance_document_pipeline
+        enhanced_scaled, enhance_meta = enhance_document_pipeline(scaled)
+        if enhance_meta.get("perspective_dewarped"):
+            preprocessing_applied.append("perspective_dewarped")
+        if enhance_meta.get("shadow_removal_applied"):
+            preprocessing_applied.append("magic_color_shadow_removed")
+        scaled = enhanced_scaled
+    except Exception as e:
+        print(f"[OCR Preprocessing] Document enhancer fallback: {e}")
 
-    # Passes to evaluate: 0 deg first, then 90 CW
-    orientations = [
-        ("0", scaled),
-        ("90_cw", cv2.rotate(scaled, cv2.ROTATE_90_CLOCKWISE)),
-    ]
+    # Determine languages and reader: Default to trilingual English + Hindi + Marathi (Devanagari)
+    target_langs = list(languages) if languages else ["en", "hi", "mr"]
+    use_mr = "mr" in target_langs or "hi" in target_langs
+    reader = get_ocr_reader(target_langs)
 
     all_raw_boxes = []
-    preprocessing_applied = ["multi_orientation_0_90cw"]
 
-    for ori_name, ori_img in orientations:
+    is_low_contrast = quality_report.get("is_low_contrast", False)
+
+    def _extract_boxes_for_image(img_canvas, ori_tag):
+        boxes = []
         try:
-            raw_res = reader.readtext(
-                ori_img,
-                text_threshold=0.45,
-                low_text=0.25,
-                link_threshold=0.30,
-                slope_ths=0.35,
-            )
+            with torch.inference_mode():
+                raw_res = reader.readtext(
+                    img_canvas,
+                    text_threshold=0.22,
+                    low_text=0.12,
+                    link_threshold=0.20,
+                    slope_ths=0.40,
+                    contrast_ths=0.04,
+                    adjust_contrast=0.4 if is_low_contrast else 0.0,
+                    width_ths=0.70,
+                    batch_size=4,
+                )
             for item in raw_res:
                 if len(item) < 3:
                     continue
                 poly_pts, text_val, conf = item
                 clean_text = str(text_val).strip().translate(DEVANAGARI_DIGITS_MAP)
-                if not clean_text or float(conf) < 0.20:
+                if not clean_text or float(conf) < 0.12:
+                    continue
+                # Only suppress single isolated diacritic noise
+                if len(clean_text) <= 1 and is_devanagari(clean_text) and float(conf) < 0.30:
                     continue
                 pts = np.array(poly_pts, dtype=np.float32)
-                unrot_pts = _unrotate_poly(pts, ori_name, H_sc, W_sc)
+                unrot_pts = _unrotate_poly(pts, ori_tag, H_sc, W_sc)
                 orig_pts = unrot_pts / scale
                 x, y, w, h = cv2.boundingRect(orig_pts.astype(np.int32))
-                all_raw_boxes.append({
+                boxes.append({
                     "text": clean_text,
                     "confidence": round(float(conf), 3),
                     "bbox": {"x": int(x), "y": int(y), "width": int(w), "height": int(h)},
-                    "orientation": ori_name
+                    "orientation": ori_tag,
                 })
         except Exception as e:
-            print(f"[OCR Engine] Error on orientation {ori_name}: {e}")
+            print(f"[OCR Engine] Error on orientation {ori_tag}: {e}")
+        return boxes
 
-    # If very few genuine words detected, test remaining orientations (90 CCW and 180)
-    real_words = [b["text"] for b in all_raw_boxes if len(b["text"]) >= 2 and any(c.isalnum() for c in b["text"])]
-    if len(real_words) < 4:
-        for ori_name, ori_code in [("90_ccw", cv2.ROTATE_90_COUNTERCLOCKWISE), ("180", cv2.ROTATE_180)]:
-            try:
-                ori_img = cv2.rotate(scaled, ori_code)
-                raw_res = reader.readtext(
-                    ori_img,
+    def _calc_orientation_score(boxes: list[dict]) -> float:
+        alnum_count = sum(len([c for c in b["text"] if c.isalnum()]) for b in boxes)
+        valid_words = sum(len(b["text"].split()) for b in boxes if len(b["text"].strip()) >= 2)
+        conf_sum = sum(b.get("confidence", 0.0) for b in boxes if len(b["text"].strip()) >= 2)
+        return (conf_sum * 1.0) + (alnum_count * 0.5) + (valid_words * 1.0)
+
+    # 1. Native 0° Pass
+    boxes_0 = _extract_boxes_for_image(scaled, "0")
+    score_0 = _calc_orientation_score(boxes_0)
+    valid_words_0 = [b["text"] for b in boxes_0 if len(b["text"]) >= 2 and any(c.isalnum() for c in b["text"])]
+
+    # 2. Fast Orientation Decision:
+    # If 0° detected at least 4 valid words with strong alphanumeric density (score >= 12.0),
+    # the document is already upright (e.g. PAN card, ID, receipt, invoice).
+    # Accept 0° immediately for a 4x-10x ingestion speedup.
+    # Only evaluate alternative rotations if 0° detected sparse/unconfident text.
+    if len(valid_words_0) >= 4 and score_0 >= 12.0:
+        all_raw_boxes = boxes_0
+        preprocessing_applied.append("orientation_0_confident")
+    else:
+        preprocessing_applied.append("multi_orientation_evaluation")
+        best_ori_name = "0"
+        best_ori_score = score_0 * 1.25 + 1.5  # Proportionate native upright bias
+        best_boxes = boxes_0
+
+        alt_orientations = [
+            ("90_cw", cv2.rotate(scaled, cv2.ROTATE_90_CLOCKWISE)),
+            ("90_ccw", cv2.rotate(scaled, cv2.ROTATE_90_COUNTERCLOCKWISE)),
+            ("180", cv2.rotate(scaled, cv2.ROTATE_180)),
+        ]
+        for ori_name, ori_img in alt_orientations:
+            cur_boxes = _extract_boxes_for_image(ori_img, ori_name)
+            cur_score = _calc_orientation_score(cur_boxes)
+            if cur_score > best_ori_score:
+                best_ori_score = cur_score
+                best_ori_name = ori_name
+                best_boxes = cur_boxes
+                # Early break: If this alternative orientation detected strong confident text (>= 5 words and score >= 20.0),
+                # stop rotation search immediately rather than evaluating remaining orientations
+                if cur_score >= 20.0 and len([b for b in cur_boxes if len(b["text"].strip()) >= 2]) >= 5:
+                    break
+
+        all_raw_boxes = best_boxes
+        preprocessing_applied.append(f"orientation_{best_ori_name}_selected")
+
+    # Multilingual Marathi Handling:
+    # NEVER run Marathi OCR on English documents simply because word count is low!
+    # Marathi scan should ONLY execute if:
+    # 1. The user explicitly passed languages=['mr'] or ['en', 'mr']
+    # 2. OR at least 3 genuine multi-character Devanagari words were detected in the winning pass
+    devanagari_boxes = [b for b in all_raw_boxes if is_devanagari(b["text"]) and len(b["text"].strip()) >= 3]
+    should_run_marathi = use_mr or len(devanagari_boxes) >= 3
+
+    if should_run_marathi and not use_mr:
+        try:
+            reader_mr = get_ocr_reader(["en", "mr"])
+            with torch.inference_mode():
+                raw_res_mr = reader_mr.readtext(
+                    scaled,
                     text_threshold=0.45,
                     low_text=0.25,
                     link_threshold=0.30,
                     slope_ths=0.35,
                 )
-                for item in raw_res:
-                    if len(item) < 3:
-                        continue
-                    poly_pts, text_val, conf = item
-                    clean_text = str(text_val).strip().translate(DEVANAGARI_DIGITS_MAP)
-                    if not clean_text or float(conf) < 0.20:
-                        continue
-                    pts = np.array(poly_pts, dtype=np.float32)
-                    unrot_pts = _unrotate_poly(pts, ori_name, H_sc, W_sc)
-                    orig_pts = unrot_pts / scale
-                    x, y, w, h = cv2.boundingRect(orig_pts.astype(np.int32))
-                    all_raw_boxes.append({
-                        "text": clean_text,
-                        "confidence": round(float(conf), 3),
-                        "bbox": {"x": int(x), "y": int(y), "width": int(w), "height": int(h)},
-                        "orientation": ori_name
-                    })
-                preprocessing_applied.append(f"orientation_{ori_name}")
-            except Exception as e:
-                print(f"[OCR Engine] Error on orientation {ori_name}: {e}")
-
-    # Check if Devanagari text is detected or if Marathi scan should be run
-    devanagari_present = any(is_devanagari(b["text"]) for b in all_raw_boxes)
-    if not use_mr and (devanagari_present or (languages is None and len(real_words) < 5)):
-        try:
-            reader_mr = get_ocr_reader(["en", "mr"])
-            raw_res_mr = reader_mr.readtext(
-                scaled,
-                text_threshold=0.45,
-                low_text=0.25,
-                link_threshold=0.30,
-                slope_ths=0.35,
-            )
             for item in raw_res_mr:
                 if len(item) < 3:
                     continue
                 poly_pts, text_val, conf = item
                 clean_text = str(text_val).strip().translate(DEVANAGARI_DIGITS_MAP)
-                if not clean_text or float(conf) < 0.20:
+                if not clean_text or float(conf) < 0.25:
                     continue
-                if is_devanagari(clean_text):
+                if is_devanagari(clean_text) and len(clean_text) >= 3:
                     pts = np.array(poly_pts, dtype=np.float32)
                     orig_pts = pts / scale
                     x, y, w, h = cv2.boundingRect(orig_pts.astype(np.int32))
@@ -308,6 +349,26 @@ def extract_text_adaptive(
             preprocessing_applied.append("marathi_scan")
         except Exception as mr_err:
             print(f"[OCR Engine] Marathi scan note: {mr_err}")
+
+    # 4. Handwriting & Signature Recognition Pass:
+    # If the document has sparse printed text (< 12 words) or contains handwriting / signatures,
+    # apply stroke-preserving ink enhancement and handwriting-profile OCR.
+    valid_words = [b["text"] for b in all_raw_boxes if len(b["text"]) >= 2 and any(c.isalnum() for c in b["text"])]
+    if len(valid_words) < 3 or (quality_report.get("is_low_contrast") and len(valid_words) < 8):
+        try:
+            from app.ocr.handwriting import enhance_handwritten_ink, read_handwriting_with_easyocr
+            hw_canvas = enhance_handwritten_ink(scaled)
+            hw_boxes = read_handwriting_with_easyocr(
+                reader,
+                hw_canvas,
+                scale=scale,
+                devanagari_digits_map=DEVANAGARI_DIGITS_MAP,
+            )
+            if hw_boxes:
+                all_raw_boxes.extend(hw_boxes)
+                preprocessing_applied.append("handwriting_ink_enhancement")
+        except Exception as hw_err:
+            print(f"[OCR Engine] Handwriting pass note: {hw_err}")
 
     # Deduplicate overlapping boxes: only drop if bounding boxes overlap AND text is same/similar
     all_raw_boxes.sort(key=lambda b: -b["confidence"])
@@ -323,6 +384,11 @@ def extract_text_adaptive(
                     break
         if not is_dupe:
             merged_boxes.append(b)
+
+    # Post-processing script consistency filter:
+    # Only remove isolated 1-character Devanagari noise/diacritics if confidence is low,
+    # while strictly preserving genuine 2+ character Marathi words (e.g. पुणे, नाव, बस, फी)
+    merged_boxes = [b for b in merged_boxes if not (is_devanagari(b["text"]) and len(b["text"].strip()) <= 1 and float(b.get("confidence", 1.0)) < 0.35)]
 
     # Sort merged boxes by reading order: top-to-bottom, left-to-right
     merged_boxes.sort(key=lambda b: (b["bbox"]["y"] // 40, b["bbox"]["x"]))

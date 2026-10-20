@@ -187,27 +187,45 @@ def extract_phone_numbers(text: str) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
-# 4. URL EXTRACTION
+# 4. URL EXTRACTION (Full URLs, Bare Domains, Shortlinks & OCR Artifacts)
 # ---------------------------------------------------------------------------
 
-URL_PATTERN = re.compile(
-    r"\b(?:https?://|www\.)[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s,;<>]*)?\b",
+URL_PATTERN_COMPREHENSIVE = re.compile(
+    r"\b(?:https?://|www\.)[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s,;<>'\"()]*)*|"
+    r"\b(?:[a-zA-Z0-9-]+\.)+(?:com|in|org|net|edu|gov\.in|ac\.in|nic\.in|res\.in|io|ai|co|app|gle|me|tech|xyz|info|dev|live)(?:/[^\s,;<>'\"()]*)?\b",
     re.IGNORECASE,
 )
 
 
 def extract_urls(text: str) -> List[str]:
-    """Extracts valid web URLs, ensuring standard scheme."""
-    matches = URL_PATTERN.findall(text)
+    """Extracts valid web URLs, bare domains, and links from text with OCR cleanup."""
+    if not text:
+        return []
+
+    # Pre-clean common OCR artifacts in URLs (e.g. 'https : //', 'vit . edu')
+    normalized = re.sub(r"https?\s*:\s*//\s*", "https://", text, flags=re.IGNORECASE)
+    normalized = re.sub(r"(\w+)\s*\.\s*(com|in|edu|org|net|gov|io|ai|gle)\b", r"\1.\2", normalized, flags=re.IGNORECASE)
+
+    matches = URL_PATTERN_COMPREHENSIVE.findall(normalized)
     cleaned = []
     seen = set()
     for u in matches:
-        u_clean = u.strip(".,;:\"')")
-        if u_clean.startswith("www."):
-            u_clean = "https://" + u_clean
-        if u_clean.lower() not in seen:
-            seen.add(u_clean.lower())
-            cleaned.append(u_clean)
+        u_clean = u.strip(".,;:\"')[]{}<>").strip()
+        if not u_clean or len(u_clean) < 4:
+            continue
+        # Reject false positives (e.g. file extensions or lone dots)
+        if u_clean.lower().endswith((".png", ".jpg", ".jpeg", ".pdf", ".txt", ".bak")):
+            continue
+        if "." not in u_clean:
+            continue
+
+        std_url = u_clean
+        if not std_url.lower().startswith(("http://", "https://")):
+            std_url = "https://" + (std_url[4:] if std_url.lower().startswith("www.") else std_url)
+
+        if std_url.lower() not in seen:
+            seen.add(std_url.lower())
+            cleaned.append(std_url)
     return cleaned
 
 

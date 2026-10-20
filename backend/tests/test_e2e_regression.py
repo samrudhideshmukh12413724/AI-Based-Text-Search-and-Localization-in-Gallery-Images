@@ -18,11 +18,26 @@ TARGET_QUERIES = [
 ]
 
 
+from app import database
+
+
+def _get_owner_for_image_stem(stem: str) -> dict:
+    """Helper to dynamically resolve the user account that owns the regression document."""
+    conn = database._connect()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM images WHERE image_name LIKE ? LIMIT 1", (f"%{stem}%",))
+    row = cursor.fetchone()
+    conn.close()
+    uid = row[0] if (row and row[0]) else 1
+    return {"id": uid, "username": f"user_{uid}"}
+
+
 @pytest.mark.parametrize("query,expected_image_stem,min_score", TARGET_QUERIES)
 def test_e2e_query_retrieval(query: str, expected_image_stem: str, min_score: float):
     """Verify that every key user upload is returned at Top 1 with exact score and bounding boxes."""
     req = SearchRequest(query=query)
-    res = search_images(body=req, current_user={"id": 1, "username": "admin"})
+    owner = _get_owner_for_image_stem(expected_image_stem)
+    res = search_images(body=req, current_user=owner)
 
     assert res["count"] >= 1, f"Query '{query}' produced 0 results"
     top = res["matched_images"][0]

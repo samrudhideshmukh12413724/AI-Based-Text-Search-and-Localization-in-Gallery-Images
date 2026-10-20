@@ -20,18 +20,19 @@ SECRET_HMAC_KEY = b"2026-patentable-zk-stego-secret-key-ocr-search"
 def generate_document_hmac(image_input: Union[str, Path, np.ndarray], ocr_text: str, entities: Dict[str, Any]) -> str:
     """
     Computes a cryptographic HMAC-SHA256 signature binding image bytes, OCR text, and entity metadata.
+    Zeroes out the LSB bit (img & 0xFE) so the hash is mathematically invariant to the watermark bits.
     """
     if isinstance(image_input, (str, Path)):
-        p = Path(image_input)
-        if not p.is_file():
-            return ""
-        with open(p, "rb") as f:
-            raw_bytes = f.read()
+        img = cv2.imread(str(image_input))
     elif isinstance(image_input, np.ndarray):
-        raw_bytes = image_input.tobytes()
+        img = image_input
     else:
         return ""
 
+    if img is None:
+        return ""
+
+    raw_bytes = (img & 0xFE).tobytes()
     payload_str = f"{ocr_text}:{json.dumps(entities, sort_keys=True)}"
     h = hmac.new(SECRET_HMAC_KEY, raw_bytes + payload_str.encode("utf-8"), hashlib.sha256)
     return h.hexdigest()[:32]  # 32-character short HMAC signature

@@ -67,6 +67,38 @@ def extract_stego_text(image_input: Union[str, Path, np.ndarray]) -> str:
         return ""
 
 
+def embed_stego_text(image_input: Union[str, Path, np.ndarray], text: str, output_path: Optional[Union[str, Path]] = None) -> np.ndarray:
+    """
+    Embeds hidden text payload into the LSB (Least Significant Bit) of image pixel channels.
+    Appends a null terminator '\\x00' so extract_stego_text can read it cleanly.
+    Note: For lossless preservation, save as PNG or lossless format.
+    """
+    if isinstance(image_input, (str, Path)):
+        img = cv2.imread(str(image_input))
+    else:
+        img = image_input.copy()
+
+    if img is None:
+        raise ValueError("Invalid image input for steganography embedding")
+
+    payload = f"{text}\x00"
+    binary_bits = "".join(format(ord(c), "08b") for c in payload)
+
+    flat = img.flatten()
+    if len(flat) < len(binary_bits):
+        raise ValueError(f"Image has {len(flat)} channels, but payload requires {len(binary_bits)} bits")
+
+    for i, bit in enumerate(binary_bits):
+        flat[i] = (int(flat[i]) & 254) | int(bit)
+
+    stego_img = flat.reshape(img.shape)
+    if output_path:
+        p = Path(output_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(p), stego_img)
+    return stego_img
+
+
 def verify_document_authenticity(image_path: str, expected_hash: str) -> Dict[str, Any]:
     """Verifies image hash against stored canonical hash to detect tampering."""
     current_hash = compute_document_hash(image_path)

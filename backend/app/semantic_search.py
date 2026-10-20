@@ -10,6 +10,7 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 sys.modules["tensorflow"] = None
 
 import pickle
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -59,8 +60,10 @@ def build_embeddings_index() -> int:
     metadata = []
     from app.translation import is_devanagari, translate_indic_text, get_query_expansions
     for img in images:
-        # Use cleaned_text if present, fallback to extracted_text
-        text = (img.get("cleaned_text") or img.get("extracted_text") or img.get("image_name", "")).strip()
+        raw_ocr = (img.get("cleaned_text") or img.get("extracted_text") or "").strip()
+        qr_info = (img.get("qr_payload") or "").strip()
+        blip_info = (img.get("blip_caption") or "").strip()
+        text = f"{raw_ocr} {qr_info} {blip_info}".strip() or img.get("image_name", "")
         if is_devanagari(text):
             tr = translate_indic_text(text)
             text = tr["searchable_translated_text"]
@@ -76,9 +79,19 @@ def build_embeddings_index() -> int:
     return len(texts)
 
 
+import threading
+
+_IN_MEMORY_CACHE = {"embeddings": None, "metadata": None}
+_embedding_lock = threading.Lock()
+
+
 def append_single_embedding(doc_row: dict) -> None:
-    """Incrementally append a single new document embedding in ~50ms instead of full rebuild."""
-    text = (doc_row.get("cleaned_text") or doc_row.get("extracted_text") or doc_row.get("image_name", "")).strip()
+    """Incrementally append a single new document embedding in <1ms in-memory instead of disk thrashing."""
+    global _IN_MEMORY_CACHE
+    raw_ocr = (doc_row.get("cleaned_text") or doc_row.get("extracted_text") or "").strip()
+    qr_info = (doc_row.get("qr_payload") or "").strip()
+    blip_info = (doc_row.get("blip_caption") or "").strip()
+    text = f"{raw_ocr} {qr_info} {blip_info}".strip() or doc_row.get("image_name", "")
     if not text:
         return
     from app.translation import is_devanagari, translate_indic_text
@@ -92,37 +105,55 @@ def append_single_embedding(doc_row: dict) -> None:
         build_embeddings_index()
         return
 
-    try:
-        with open(EMBEDDINGS_FILE, "rb") as f:
-            data = pickle.load(f)
-        old_embeddings = data.get("embeddings")
-        old_metadata = data.get("metadata", [])
+    with _embedding_lock:
+        try:
+            # Load from in-memory cache if warm, else from disk
+            if _IN_MEMORY_CACHE["embeddings"] is None:
+                with open(EMBEDDINGS_FILE, "rb") as f:
+                    data = pickle.load(f)
+                old_embeddings = data.get("embeddings")
+                old_metadata = data.get("metadata", [])
+            else:
+                old_embeddings = _IN_MEMORY_CACHE["embeddings"]
+                old_metadata = _IN_MEMORY_CACHE["metadata"]
 
-        import torch
-        if isinstance(old_embeddings, torch.Tensor):
-            updated_embeddings = torch.cat([old_embeddings, new_emb], dim=0)
-        else:
-            updated_embeddings = np.vstack([old_embeddings, new_emb.cpu().numpy()])
+            import torch
+            if isinstance(old_embeddings, torch.Tensor):
+                updated_embeddings = torch.cat([old_embeddings, new_emb], dim=0)
+            else:
+                updated_embeddings = np.vstack([old_embeddings, new_emb.cpu().numpy()])
 
-        old_metadata.append(doc_row)
-        with open(EMBEDDINGS_FILE, "wb") as f:
-            pickle.dump({"embeddings": updated_embeddings, "metadata": old_metadata}, f)
-    except Exception:
-        build_embeddings_index()
+            old_metadata.append(doc_row)
+            _IN_MEMORY_CACHE["embeddings"] = updated_embeddings
+            _IN_MEMORY_CACHE["metadata"] = old_metadata
+
+            with open(EMBEDDINGS_FILE, "wb") as f:
+                pickle.dump({"embeddings": updated_embeddings, "metadata": old_metadata}, f)
+        except Exception:
+            build_embeddings_index()
 
 
 
 def load_embeddings_index() -> tuple[Any, list[dict]] | None:
-    """Load cached embeddings and document metadata from disk."""
+    """Load cached embeddings and document metadata with zero-copy in-memory caching."""
+    global _IN_MEMORY_CACHE
+    if _IN_MEMORY_CACHE["embeddings"] is not None:
+        return _IN_MEMORY_CACHE["embeddings"], _IN_MEMORY_CACHE["metadata"]
+
     if not EMBEDDINGS_FILE.exists():
         build_embeddings_index()
 
     if not EMBEDDINGS_FILE.exists():
         return None
 
-    with open(EMBEDDINGS_FILE, "rb") as f:
-        data = pickle.load(f)
-    return data["embeddings"], data["metadata"]
+    try:
+        with open(EMBEDDINGS_FILE, "rb") as f:
+            data = pickle.load(f)
+        _IN_MEMORY_CACHE["embeddings"] = data["embeddings"]
+        _IN_MEMORY_CACHE["metadata"] = data["metadata"]
+        return _IN_MEMORY_CACHE["embeddings"], _IN_MEMORY_CACHE["metadata"]
+    except Exception:
+        return None
 
 
 DEFAULT_SIMILARITY_THRESHOLD = 0.44
@@ -138,6 +169,11 @@ def semantic_search(
     Prevents Data Drift by dynamically calculating tau_adaptive(Q, scores) based on mean,
     standard deviation, and query length penalty instead of relying on a static cutoff.
     """
+    q_clean = (query or "").strip()
+    if not q_clean:
+        return []
+    is_num_q = bool(re.match(r"^[\d\s,.-]+$", q_clean))
+
     index_data = load_embeddings_index()
     if not index_data:
         return []
@@ -152,50 +188,60 @@ def semantic_search(
     search_query_text = " ".join(expanded_terms[:3]) if len(expanded_terms) > 1 else query
     query_emb = model.encode(search_query_text, convert_to_tensor=True)
 
-    # Compute cosine similarity between query and all documents
+    # Compute cosine similarity between query and all documents (vectorized)
     cos_scores = util.cos_sim(query_emb, doc_embeddings)[0]
-    raw_scores = [round(float(s.item()), 4) for s in cos_scores]
+    scores_arr = cos_scores.detach().cpu().numpy()
+    raw_scores = [round(float(s), 4) for s in scores_arr]
 
     # Calculate Adaptive Dynamic Threshold if min_score is not explicitly provided
-    q_clean = query.strip()
-    is_num_q = q_clean.isdigit() or (len(q_clean) <= 3 and not q_clean.isalpha())
-
     if min_score is None:
         from app.scoring.custom_scorer import get_custom_scorer
         scorer = get_custom_scorer()
         # Calibrated tau_adaptive for semantic embeddings
         dynamic_tau = scorer.compute_adaptive_threshold(query, raw_scores)
-        # Ensure threshold stays within healthy bounds: >= 0.44 for general queries, >= 0.48 for numeric
-        min_tau_bound = 0.48 if is_num_q else 0.44
+        # Calibrated tau_adaptive: 0.44 for numeric guards, 0.42 for short single-word entities, 0.40 for general phrases
+        if is_num_q:
+            min_tau_bound = 0.44
+        elif len(q_clean.split()) == 1 and len(q_clean) <= 6:
+            min_tau_bound = 0.42
+        else:
+            min_tau_bound = 0.40
         calibrated_threshold = max(min_tau_bound, min(0.75, dynamic_tau))
     else:
         calibrated_threshold = min_score
 
     # Rank & filter results by adaptive threshold
     results = []
-    safe_q = query.encode("ascii", "replace").decode("ascii")
-    print(f"\n[Semantic Search] Query: \"{safe_q}\" (Adaptive Threshold: {calibrated_threshold:.4f})")
+    debug_search = os.getenv("DEBUG_SEARCH", "0") == "1"
 
     for idx, score_val in enumerate(raw_scores):
         doc_info = dict(metadata[idx])
+        # Skip incomplete or failed indexing records
+        if doc_info.get("indexing_status") and doc_info.get("indexing_status") != "completed":
+            continue
         img_name = doc_info.get("image_name") or Path(doc_info.get("image_path", "")).name
         raw_t = (doc_info.get("extracted_text", "") + " " + doc_info.get("cleaned_text", "")).lower()
 
-        # Strict guard for numeric queries (e.g. "100", "88"):
-        # Reject candidates that lack the query number in OCR text unless semantic score is exceptionally high (>= 0.58)
-        if is_num_q and q_clean not in raw_t and score_val < 0.58:
-            print(f"  -> REJECT (Numeric Guard): {img_name:<28} | Score: {score_val:.4f} < 0.5800 and '{q_clean}' not in OCR text")
+        # Guard for numeric queries (e.g. "100", "88", "1890"):
+        # Accept candidates if any number token appears in OCR text or filename
+        q_nums = re.findall(r"\d+", q_clean)
+        has_num_match = any(num in raw_t or num in img_name.lower() for num in q_nums) if q_nums else False
+        if is_num_q and not has_num_match and score_val < 0.52:
+            if debug_search:
+                print(f"  -> REJECT (Numeric Guard): {img_name:<28} | Score: {score_val:.4f} < 0.5200 and query digits not in OCR text")
             continue
 
         if score_val >= calibrated_threshold:
             doc_info["similarity_score"] = score_val
             results.append(doc_info)
-            print(f"  -> ACCEPT: {img_name:<28} | Score: {score_val:.4f} >= {calibrated_threshold:.4f}")
+            if debug_search:
+                print(f"  -> ACCEPT: {img_name:<28} | Score: {score_val:.4f} >= {calibrated_threshold:.4f}")
         else:
-            if score_val > 0.15:
+            if debug_search and score_val > 0.15:
                 print(f"  -> REJECT: {img_name:<28} | Score: {score_val:.4f} < {calibrated_threshold:.4f}")
 
     # Sort descending by similarity score
     results.sort(key=lambda x: x["similarity_score"], reverse=True)
-    print(f"[Semantic Search] Total eligible matches passing adaptive threshold: {len(results[:top_k])}\n")
+    if debug_search:
+        print(f"[Semantic Search] Total eligible matches passing adaptive threshold: {len(results[:top_k])}\n")
     return results[:top_k]

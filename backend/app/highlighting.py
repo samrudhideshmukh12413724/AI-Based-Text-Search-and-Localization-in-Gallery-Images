@@ -17,10 +17,11 @@ def _clean_text_for_split(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def extract_best_sentence(query_embedding: np.ndarray, text: str, model=None) -> str:
+def extract_best_sentence(query_embedding: np.ndarray, text: str, model=None, query_text: str = "") -> str:
     """
     Split text into logical sentences/clauses and select the one with highest semantic relevance.
     Falls back to first 150 chars if no clean sentence boundary found.
+    Fast O(1) lexical matching is checked first when query_text is available, avoiding neural sentence encodings.
     """
     if not text or not text.strip():
         return ""
@@ -42,17 +43,36 @@ def extract_best_sentence(query_embedding: np.ndarray, text: str, model=None) ->
     if not sentences:
         return text[:160].strip()
 
+    # 1. Fast Lexical Shortcut: Check if any sentence matches query terms directly
+    if query_text:
+        q_words = [w.lower() for w in re.findall(r"\w+", query_text) if len(w) >= 3 and w.lower() not in STOPWORDS]
+        if not q_words:
+            q_words = [w.lower() for w in re.findall(r"\w+", query_text) if len(w) >= 2]
+        if q_words:
+            # Prefer sentence containing all query words
+            for s in sentences:
+                s_low = s.lower()
+                if all(w in s_low for w in q_words):
+                    return s if len(s) <= 200 else s[:197] + "..."
+            # Next prefer sentence containing any query word
+            for s in sentences:
+                s_low = s.lower()
+                if any(w in s_low for w in q_words):
+                    return s if len(s) <= 200 else s[:197] + "..."
+
     if len(sentences) == 1 or query_embedding is None:
         return sentences[0][:180].strip()
 
+    # 2. Semantic Fallback: encode only top 4 candidate sentences
+    cand_sentences = sentences[:4]
     if model is None:
         model = get_embedding_model()
 
-    sent_embs = model.encode(sentences, convert_to_numpy=True, normalize_embeddings=True)
+    sent_embs = model.encode(cand_sentences, convert_to_numpy=True, normalize_embeddings=True)
     scores = np.dot(sent_embs, query_embedding)
     best_idx = int(np.argmax(scores))
 
-    best_sentence = sentences[best_idx]
+    best_sentence = cand_sentences[best_idx]
     if len(best_sentence) > 200:
         best_sentence = best_sentence[:197] + "..."
     return best_sentence
@@ -156,7 +176,7 @@ def get_semantic_highlights(
     if not text or not text.strip() or query_embedding is None:
         return []
 
-    candidates = _generate_candidate_phrases(text, max_n=3)
+    candidates = _generate_candidate_phrases(text, max_n=3)[:10]
     if not candidates:
         return []
 
@@ -218,11 +238,32 @@ def get_text_bounding_boxes(
 
     from difflib import SequenceMatcher
     from app.search.exact_search import INFLECTION_MAP
+    from app.translation import get_query_expansions
 
     expanded_target_words = set(target_words)
-    for tw in target_words:
+    for tw in list(target_words):
         if tw in INFLECTION_MAP:
             expanded_target_words.update(INFLECTION_MAP[tw])
+        for exp in get_query_expansions(tw):
+            for ew in re.findall(r"[a-zA-Z0-9\u0900-\u097F]+", exp.lower()):
+                if len(ew) >= 2:
+                    expanded_target_words.add(ew)
+
+    # Dynamic fallback for image dimensions if not pre-populated in database
+    eff_w = image_width
+    eff_h = image_height
+    if eff_w <= 0 or eff_h <= 0:
+        valid_boxes_w = [b.get("bbox", {}).get("x", 0) + b.get("bbox", {}).get("width", 0) for b in word_boxes if b.get("bbox")]
+        valid_boxes_h = [b.get("bbox", {}).get("y", 0) + b.get("bbox", {}).get("height", 0) for b in word_boxes if b.get("bbox")]
+        if valid_boxes_w and valid_boxes_h:
+            eff_w = max(int(max(valid_boxes_w) * 1.04), 100)
+            eff_h = max(int(max(valid_boxes_h) * 1.04), 100)
+        else:
+            eff_w = 1000
+            eff_h = 1333
+
+    clean_q_raw = query.strip().lower()
+    clean_q_noprot = re.sub(r"^https?://(www\.)?", "", clean_q_raw)
 
     matched_boxes = []
     seen = set()
@@ -233,21 +274,29 @@ def get_text_bounding_boxes(
             continue
 
         w_lower = w_text.lower()
+        w_noprot = re.sub(r"^https?://(www\.)?", "", w_lower)
         box_tokens = [w.lower() for w in re.findall(r"[a-zA-Z0-9\u0900-\u097F]+", w_lower)]
 
         is_match = False
-        for tw in expanded_target_words:
-            if tw in box_tokens:
-                is_match = True
-                break
-            # Substring matching for longer terms
-            if any((tw in bt or bt in tw) for bt in box_tokens if len(bt) >= 3 and len(tw) >= 3):
-                is_match = True
-                break
-            # Fuzzy typo matching for OCR handwriting / camera errors
-            if any(len(tw) >= 4 and len(bt) >= 4 and SequenceMatcher(None, tw, bt).ratio() >= 0.75 for bt in box_tokens):
-                is_match = True
-                break
+
+        # 1. Direct URL / Phrase matching in crowded documents
+        if len(clean_q_raw) >= 3 and (clean_q_raw in w_lower or (len(clean_q_noprot) >= 4 and clean_q_noprot in w_noprot)):
+            is_match = True
+
+        # 2. Token / Concept matching
+        if not is_match:
+            for tw in expanded_target_words:
+                if tw in box_tokens:
+                    is_match = True
+                    break
+                # Substring matching for longer terms
+                if any((tw in bt or bt in tw) for bt in box_tokens if len(bt) >= 3 and len(tw) >= 3):
+                    is_match = True
+                    break
+                # Fuzzy typo matching for OCR handwriting / camera errors
+                if any(len(tw) >= 4 and len(bt) >= 4 and SequenceMatcher(None, tw, bt).ratio() >= 0.75 for bt in box_tokens):
+                    is_match = True
+                    break
 
         if is_match:
             bbox = box.get("bbox", {})
@@ -260,14 +309,12 @@ def get_text_bounding_boxes(
                 continue
             seen.add(box_key)
 
-            norm_bbox = {}
-            if image_width > 0 and image_height > 0:
-                norm_bbox = {
-                    "x": round(x / image_width, 4),
-                    "y": round(y / image_height, 4),
-                    "width": round(w / image_width, 4),
-                    "height": round(h / image_height, 4)
-                }
+            norm_bbox = {
+                "x": round(x / eff_w, 4),
+                "y": round(y / eff_h, 4),
+                "width": round(w / eff_w, 4),
+                "height": round(h / eff_h, 4)
+            }
 
             matched_boxes.append({
                 "label": f"Text Match: {w_text}",
@@ -298,13 +345,14 @@ def build_highlight_payload(
     Construct the full highlight payload for a single document search result,
     including preview snippet, matched concepts, and in-image text bounding boxes.
     """
-    model = get_embedding_model()
+    model = None
+    if search_type != "keyword":
+        if query_embedding is None and query:
+            model = get_embedding_model()
+            query_embedding = model.encode(query, convert_to_numpy=True, normalize_embeddings=True)
 
-    if query_embedding is None and query:
-        query_embedding = model.encode(query, convert_to_numpy=True, normalize_embeddings=True)
-
-    # 1. Best preview sentence
-    preview = extract_best_sentence(query_embedding, raw_text, model=model)
+    # 1. Best preview sentence (uses instant lexical matching when available)
+    preview = extract_best_sentence(query_embedding, raw_text, model=model, query_text=query)
     if not preview:
         preview = raw_text[:160].strip()
 
@@ -317,18 +365,22 @@ def build_highlight_payload(
         matched_concepts = highlight_terms[:3]
     else:
         # Semantic mode: extract semantically relevant concepts
-        highlight_terms = get_semantic_highlights(
-            query_embedding,
-            preview,
-            model=model,
-            threshold=threshold,
-            max_terms=max_terms,
+        highlight_terms = (
+            get_semantic_highlights(
+                query_embedding,
+                preview,
+                model=model,
+                threshold=threshold,
+                max_terms=max_terms,
+            )
+            if query_embedding is not None
+            else []
         )
-        # If preview had few terms, supplement from full text
-        if len(highlight_terms) < 2:
+        # If preview had few terms, supplement from first 250 chars of full text
+        if len(highlight_terms) < 2 and query_embedding is not None:
             full_terms = get_semantic_highlights(
                 query_embedding,
-                raw_text,
+                raw_text[:250],
                 model=model,
                 threshold=threshold,
                 max_terms=max_terms,

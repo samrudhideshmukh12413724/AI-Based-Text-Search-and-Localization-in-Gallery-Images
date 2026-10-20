@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-
-import 'screens/home_screen.dart';
+import 'screens/auth_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const AiImageSearchApp());
 }
 
@@ -12,12 +13,10 @@ class AiImageSearchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI Image Search',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+      title: 'DocuLens AI',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      home: const AuthScreen(),
     );
   }
 }

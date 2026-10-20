@@ -44,3 +44,16 @@ scratch/
 *.png
 *.jpg
 *.jpeg
+
+# Binaries & Backups
+*.exe
+*.apk
+*.db-shm
+*.db-wal
+*.bak*
+database/*.backup*
+database/*.bak*
+database/*backup*
+database/*.db.*
+database/backups/
+phase5_backup/
