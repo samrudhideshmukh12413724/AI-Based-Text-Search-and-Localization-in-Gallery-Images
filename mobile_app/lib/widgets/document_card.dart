@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class DocumentCard extends StatelessWidget {
@@ -49,6 +50,7 @@ class DocumentCard extends StatelessWidget {
                   child: imageUrl != null && imageUrl!.isNotEmpty
                       ? Image.network(
                           imageUrl!,
+                          headers: ApiService.authHeaders,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _buildPlaceholder(isPdf),
                         )

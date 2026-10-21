@@ -1,0 +1,45 @@
+# Git & Documentation
+.git
+.gitignore
+.github
+docs/
+*.md
+
+# Virtual Environment & Python Caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Databases & Backups (CRITICAL FOR PRIVACY)
+database/*.db
+database/*.db.*
+database/*.bak*
+database/*.backup*
+database/*.pkl
+database/backups/
+backend/*.db
+
+# Media & Uploads
+uploads/
+screenshots/
+test_images/
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# Binaries & Scratch Files
+*.exe
+*.apk
+scratch/
+phase5_backup/
+
+# Flutter Mobile Application
+mobile_app/
+.dart_tool/
+build/

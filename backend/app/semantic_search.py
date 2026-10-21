@@ -19,7 +19,8 @@ from sentence_transformers import SentenceTransformer, util
 
 from app.database import list_images
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+import os
+ROOT_DIR = Path(os.getenv("DOCULENS_ROOT", str(Path(__file__).resolve().parents[2])))
 EMBEDDINGS_FILE = ROOT_DIR / "database" / "embeddings.pkl"
 
 _model: SentenceTransformer | None = None

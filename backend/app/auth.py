@@ -10,7 +10,8 @@ if not hasattr(bcrypt, "__about__"):
         __version__ = getattr(bcrypt, "__version__", "4.0.1")
     bcrypt.__about__ = _About()
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
+import re
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -77,29 +78,52 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    """Dependency that extracts user from JWT Bearer token, or defaults to public guest user."""
-    if not token:
-        # Default public guest: strictly NON-admin, scoped only to public demo/guest documents
-        return {"id": 1, "username": "guest", "is_admin": False}
+def get_current_user(
+    request: Request = None,
+    token: Optional[str] = Depends(oauth2_scheme),
+) -> Dict[str, Any]:
+    """
+    Multi-Tenant Row-Level Authentication Dependency:
+    1. If JWT Bearer token is provided: validates signature and returns authenticated user.
+    2. If no token, checks for client-supplied 'X-Guest-Session-ID' header or query param.
+       Maps that session ID to a dedicated, isolated guest user account (never shared).
+    3. If neither token nor guest session ID is present, returns an isolated ephemeral anonymous user
+       with user_id = -1 (strictly empty vault, zero access to other users' documents).
+    """
+    if token:
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            user_id: int = payload.get("user_id")
+            if username is None or user_id is None:
+                raise credentials_exception
+            user = database.get_user_by_id(user_id)
+            if user is None:
+                raise credentials_exception
+            return user
+        except jwt.PyJWTError:
+            raise credentials_exception
 
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        user_id: int = payload.get("user_id")
-        if username is None or user_id is None:
-            raise credentials_exception
-        user = database.get_user_by_id(user_id)
-        if user is None:
-            raise credentials_exception
-        return user
-    except jwt.PyJWTError:
-        raise credentials_exception
+    # Check for stable client-specific Guest Session ID (e.g. from unique mobile app installation)
+    if request is not None:
+        guest_sess_id = (
+            request.headers.get("X-Guest-Session-ID")
+            or request.headers.get("x-guest-session-id")
+            or request.query_params.get("guest_session_id")
+        )
+        if guest_sess_id:
+            clean_sess = guest_sess_id.strip()
+            if 8 <= len(clean_sess) <= 128 and re.match(r"^[a-zA-Z0-9_\-]+$", clean_sess):
+                return database.get_or_create_guest_user(clean_sess)
+
+    # Completely unauthenticated request with no guest session:
+    # Isolated anonymous entity with user_id = -1 (prevents global data leakage)
+    return {"id": -1, "username": "anonymous_guest", "is_admin": False}
 
 
 def get_current_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:

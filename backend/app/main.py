@@ -18,10 +18,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional, Dict
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks, Response
+from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks, Response, Request, Depends
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import database
@@ -51,7 +50,7 @@ from app.scoring.custom_scorer import get_custom_scorer
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(os.getenv("DOCULENS_ROOT", str(Path(__file__).resolve().parents[2])))
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -80,7 +79,126 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Secure File Access Routes (replacing wide-open StaticFiles mount)
+@app.get("/uploads/{filename}")
+async def get_uploaded_file(
+    filename: str,
+    request: Request,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Secure Document File Delivery Endpoint.
+    Enforces strict tenant ownership: Users can only retrieve their own uploaded files.
+    Quarantined files are completely inaccessible to non-admin users.
+    Path traversal attacks (../) are rejected.
+    """
+    safe_filename = Path(filename).name
+    if not safe_filename or safe_filename != filename or ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(400, "Invalid file name.")
+
+    target_path = (UPLOADS_DIR / safe_filename).resolve()
+    if not str(target_path).startswith(str(UPLOADS_DIR.resolve())):
+        raise HTTPException(403, "Access to requested path is forbidden.")
+
+    if not target_path.is_file():
+        raise HTTPException(404, "File not found on disk.")
+
+    # Query SQLite record to verify row-level tenant ownership
+    with database._connect() as conn:
+        row = conn.execute("SELECT * FROM images WHERE image_name = ?", (safe_filename,)).fetchone()
+
+    if row:
+        img_dict = database._parse_row(row)
+        # Quarantine check: quarantined documents are never returned to non-admins
+        if img_dict.get("is_quarantined", 0) == 1 and not current_user.get("is_admin", False):
+            raise HTTPException(404, "Document not found.")
+
+        # Multi-tenant ownership check
+        if not current_user.get("is_admin", False):
+            if current_user.get("id") == -1 or img_dict.get("user_id") != current_user.get("id"):
+                raise HTTPException(403, "Access denied: You do not have permission to access this document.")
+
+    suffix = target_path.suffix.lower()
+    media_type = "image/jpeg"
+    if suffix == ".png":
+        media_type = "image/png"
+    elif suffix == ".webp":
+        media_type = "image/webp"
+
+    return FileResponse(target_path, media_type=media_type)
+
+
+@app.get("/images/{image_id}/file")
+@app.get("/images/{image_id}/thumbnail")
+def get_image_file_or_thumbnail(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Explicit Authorized Image & Thumbnail Delivery Endpoint.
+    Validates ownership of image_id before serving image bytes.
+    """
+    row = database.get_image_by_id(image_id)
+    if not row:
+        raise HTTPException(404, "Document not found.")
+
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(403, "Access denied: You do not have permission to view this document.")
+
+    p = Path(row["image_path"])
+    if not p.is_file():
+        raise HTTPException(404, "Document file not found on disk.")
+
+    suffix = p.suffix.lower()
+    media_type = "image/jpeg"
+    if suffix == ".png":
+        media_type = "image/png"
+    elif suffix == ".webp":
+        media_type = "image/webp"
+
+    return FileResponse(p, media_type=media_type)
+
+
+@app.get("/images/{image_id}")
+def get_image_metadata(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Retrieve single document metadata.
+    Enforces tenant ownership check. Returns 404 if not found or owned by another user.
+    """
+    row = database.get_image_by_id(image_id)
+    if not row:
+        raise HTTPException(404, "Document not found.")
+
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(404, "Document not found.")
+
+    return row
+
+
+@app.delete("/images/{image_id}")
+def delete_image_endpoint(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Safely delete an image record and file, enforcing tenant ownership.
+    """
+    row = database.get_image_by_id(image_id, include_quarantined=True)
+    if not row:
+        raise HTTPException(404, "Document not found.")
+
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(403, "Access denied: You do not have permission to delete this document.")
+
+    success = database.delete_image(image_id, user_id=None if current_user.get("is_admin") else current_user.get("id"))
+    if not success:
+        raise HTTPException(404, "Failed to delete document.")
+
+    return {"status": "success", "message": f"Document {image_id} deleted successfully."}
+
 
 
 @app.on_event("startup")
@@ -222,6 +340,10 @@ def upload_image(
     When async_processing=False:
       Performs full synchronous extraction (used for instant camera scan & unit tests).
     """
+    # Strict authentication check: anonymous requests with neither JWT nor Guest Session ID are blocked
+    if current_user.get("id") == -1:
+        raise HTTPException(401, "Authentication required or valid X-Guest-Session-ID header required to upload documents.")
+
     suffix = Path(file.filename or "").suffix.lower() or ".jpg"
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, "Supported formats: JPG, PNG, WEBP")
@@ -230,18 +352,23 @@ def upload_image(
     if not data:
         raise HTTPException(400, "Empty file uploaded.")
 
+    # Image format and byte integrity validation (rejects invalid/corrupted payloads)
+    try:
+        import io
+        from PIL import Image as PILImg, ImageOps
+        pil_img = PILImg.open(io.BytesIO(data))
+        pil_img.verify()
+        pil_img = PILImg.open(io.BytesIO(data))
+    except Exception as e:
+        raise HTTPException(400, f"Invalid or corrupted image file: {e}")
+
     original_name = Path(file.filename or "image.jpg").name
     safe_name = f"{Path(original_name).stem}_{uuid.uuid4().hex[:8]}{suffix}"
     dest_path = UPLOADS_DIR / safe_name
 
     # Normalize phone camera EXIF orientation & auto-downscale giant resolutions (>2560px)
     try:
-        import io
-        from PIL import Image as PILImg, ImageOps
-        pil_img = PILImg.open(io.BytesIO(data))
         pil_img = ImageOps.exif_transpose(pil_img)
-
-        # Scale down oversized photos (e.g. 48MP) to preserve crisp OCR while eliminating memory/time lag
         max_dim = 2560
         if max(pil_img.size) > max_dim:
             scale = max_dim / float(max(pil_img.size))
@@ -262,8 +389,8 @@ def upload_image(
         with open(dest_path, "wb") as out:
             out.write(data)
 
-    # 1. Run Duplicate & Near-Duplicate Detection (Phase 4 Step 5)
-    dupe_res = check_duplicate(dest_path)
+    # 1. Run Duplicate & Near-Duplicate Detection (Phase 4 Step 5 - Isolated to Tenant)
+    dupe_res = check_duplicate(dest_path, user_id=current_user.get("id"))
     is_dupe = 1 if dupe_res.get("is_duplicate") else 0
     canon_id = dupe_res.get("canonical_id")
     dupe_sim = float(dupe_res.get("similarity", 0.0)) if is_dupe else 0.0
@@ -283,7 +410,9 @@ def upload_image(
             has_visual_objects=0,
             visual_metadata={},
             entities={},
-            user_id=current_user.get("id", 1),
+            user_id=current_user.get("id"),
+            is_demo=0,
+            is_quarantined=0,
         )
         database.update_image_indexing_status(row["id"], "queued")
         database.update_image_duplicates(
@@ -296,7 +425,7 @@ def upload_image(
             duplicate_match_type=dupe_match_type,
         )
         # Enqueue into controlled background AI worker with priority
-        get_sync_worker().enqueue(row["id"], dest_path, safe_name, current_user.get("id", 1), priority=priority)
+        get_sync_worker().enqueue(row["id"], dest_path, safe_name, current_user.get("id"), priority=priority)
         invalidate_search_cache()
 
         return {
@@ -370,8 +499,10 @@ def upload_image(
         has_visual_objects=has_visual,
         visual_metadata=vis_res,
         entities=entities,
-        user_id=current_user.get("id", 1),
+        user_id=current_user.get("id"),
         qr_payload=qr_summary,
+        is_demo=0,
+        is_quarantined=0,
     )
     database.update_image_ocr_boxes(row["id"], word_boxes)
     database.update_image_metadata(
@@ -465,12 +596,13 @@ def get_images(
     user_id: Optional[int] = None,
     current_user: dict = Depends(auth.get_current_user),
 ):
-    """Retrieve all indexed documents scoped to the current tenant (or all for admin)."""
-    # Strict multi-tenant row-level access control:
-    # If the user is NOT an admin, they are strictly restricted to their own user_id.
+    """Retrieve all indexed documents scoped strictly to current tenant (or all for admin)."""
+    if current_user.get("id") == -1:
+        return []
+
     effective_user_id = None
     if not current_user.get("is_admin", False):
-        effective_user_id = current_user.get("id", 1)
+        effective_user_id = current_user.get("id")
     else:
         effective_user_id = user_id
 
@@ -487,13 +619,34 @@ def get_images(
             "cleaned_text": r.get("cleaned_text", r["extracted_text"]),
             "entities": r.get("entities", {}),
             "created_at": r["created_at"],
-            "user_id": r.get("user_id", 1),
+            "user_id": r.get("user_id"),
             "indexing_status": r.get("indexing_status", "completed"),
             "is_demo": r.get("is_demo", 0),
         }
         item.update(_extract_visual_info(r))
         result.append(item)
     return result
+
+
+@app.delete("/images/{image_id}")
+def delete_image_endpoint(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Safely and permanently deletes a document and associated metadata, scoped strictly to owner."""
+    row = database.get_image_by_id(image_id)
+    if not row:
+        raise HTTPException(404, "Document not found.")
+
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(403, "Tenant access denied: You do not have permission to delete another user's document.")
+
+    success = database.delete_image(image_id, user_id=None if current_user.get("is_admin") else current_user.get("id"))
+    if not success:
+        raise HTTPException(500, "Failed to delete document.")
+
+    invalidate_search_cache()
+    return {"status": "success", "message": f"Document {image_id} deleted successfully."}
 
 
 class SyncCheckItem(BaseModel):
@@ -518,7 +671,13 @@ def check_images_for_sync(
       missing: list of filenames that need to be uploaded
     Allows folders with 5,000 images to be checked in < 0.5 seconds.
     """
-    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id", 1)
+    if current_user.get("id") == -1:
+        return {
+            "already_synced": [],
+            "missing": [item.filename.strip() for item in body.files],
+        }
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
     existing_rows = database.list_images(user_id=scoped_user_id)
 
     # Build fast lookup sets
@@ -564,17 +723,17 @@ def get_image_relationships_endpoint(
     If the queried image is a duplicate variant, resolves its canonical_image_id and returns
     the canonical image's relationships, preserving strict duplicate isolation.
     """
-    row = database.get_image_by_id(image_id)
+    row = database.get_image_by_id(image_id, include_quarantined=True)
     if not row:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found.")
 
     # Multi-tenant isolation verification
-    if not current_user.get("is_admin", False) and row.get("user_id", 1) != current_user.get("id", 1):
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
         raise HTTPException(status_code=403, detail="Tenant access denied: You do not have permission to view another user's document.")
 
     canonical_id = row.get("canonical_image_id") if row.get("is_duplicate") else None
 
-    raw_rels = get_image_relationships(image_id)
+    raw_rels = get_image_relationships(image_id, user_id=None if current_user.get("is_admin") else current_user.get("id"))
     formatted_rels = []
     for r in raw_rels:
         formatted_rels.append({
@@ -787,7 +946,19 @@ def search_images(
     q_norm = body.query.strip().lower()
     scoped_user_id = None
     if not current_user.get("is_admin", False):
-        scoped_user_id = current_user.get("id", 1)
+        scoped_user_id = current_user.get("id")
+
+    # Reject anonymous unauthenticated searches to prevent data leakage
+    if current_user.get("id") == -1:
+        return {
+            "query": body.query,
+            "search_type": "keyword",
+            "count": 0,
+            "total_matches": 0,
+            "message": "Please log in or supply a valid guest session.",
+            "results": [],
+            "matched_images": [],
+        }
 
     if not q_norm:
         return {
@@ -801,7 +972,7 @@ def search_images(
         }
 
     if q_norm in ("all", "all photos", "everything", "*", "gallery", "folder", "folders", "vault"):
-        all_imgs = database.list_images(user_id=scoped_user_id if not current_user.get("is_admin", False) else None)
+        all_imgs = database.list_images(user_id=scoped_user_id)
         all_res = []
         for r in all_imgs:
             v_info = _extract_visual_info(r)
@@ -835,6 +1006,7 @@ def search_images(
 
     # =========================================================================
     # High-Speed In-Memory LRU Cache Lookup (< 5ms response for repeated queries)
+    # Cache key includes user_id to enforce multi-tenant separation in RAM
     # =========================================================================
     cache_key = (
         q_norm,
@@ -845,19 +1017,11 @@ def search_images(
         body.format,
         body.visual_type,
         body.entity_type,
-        current_user.get("id", 1),
+        current_user.get("id"),
         bool(current_user.get("is_admin", False)),
     )
     if cache_key in _search_cache:
         return _search_cache[cache_key]
-
-    # =========================================================================
-    # Phase 4 & 5: UNIFIED MULTI-FACETED FILTER & MULTI-TENANT EVALUATION
-    # Non-admin users are strictly scoped to their own tenant/user_id
-    # =========================================================================
-    scoped_user_id = None
-    if not current_user.get("is_admin", False):
-        scoped_user_id = current_user.get("id", 1)
 
     params = FilterParams(
         date_from=body.date_from,
@@ -869,7 +1033,7 @@ def search_images(
         entity_type=body.entity_type,
         user_id=scoped_user_id,
     )
-    eligible_ids = get_eligible_candidate_ids(params) if params.has_any_filter() else None
+    eligible_ids = get_eligible_candidate_ids(params) if (params.has_any_filter() or scoped_user_id is not None) else None
 
     # Deterministic empty candidate termination when filters yield no matches
     if eligible_ids is not None and len(eligible_ids) == 0:
@@ -1021,7 +1185,7 @@ def search_images(
             query_emb_np = None
 
     for img_id in ranked_ids:
-        db_row = database.get_image_by_id(img_id)
+        db_row = database.get_image_by_id(img_id, user_id=scoped_user_id)
         if not db_row:
             continue
         # Exclude incomplete, queuing, or failed documents from search results
@@ -1294,17 +1458,34 @@ def search_images(
 
 
 @app.post("/search/semantic")
-def search_semantic(body: SearchRequest):
+def search_semantic(
+    body: SearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """Phase 2 Semantic Search using NLP embeddings and cosine similarity thresholding."""
-    sem_matches = run_semantic_search(body.query, top_k=10)
+    if current_user.get("id") == -1:
+        return {
+            "query": body.query,
+            "search_type": "semantic",
+            "count": 0,
+            "total_matches": 0,
+            "message": "No relevant documents found.",
+            "results": [],
+            "matched_images": [],
+        }
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    sem_matches = run_semantic_search(body.query, top_k=25)
     formatted = []
     for doc in sem_matches:
+        img_id = doc.get("id")
+        db_row = database.get_image_by_id(img_id, user_id=scoped_user_id) if img_id else None
+        if not db_row:
+            continue
+
         img_name = doc.get("image_name") or Path(doc.get("image_path", "")).name
         raw_text = doc.get("cleaned_text") or doc.get("extracted_text", "")
         h_data = build_highlight_payload(body.query, raw_text, search_type="semantic")
-
-        img_id = doc.get("id")
-        db_row = database.get_image_by_id(img_id) if img_id else None
 
         item = {
             "id": img_id,
@@ -1315,13 +1496,7 @@ def search_semantic(body: SearchRequest):
             "similarity_score": doc.get("similarity_score", 0.0),
         }
         item.update(h_data)
-
-        # Enrich with Phase 3 visual object information
-        if db_row:
-            item.update(_extract_visual_info(db_row))
-        else:
-            item.update({"has_visual_objects": False, "visual_objects": [], "visual_summary": ""})
-
+        item.update(_extract_visual_info(db_row))
         formatted.append(item)
 
     collapsed_formatted = collapse_duplicate_results(formatted)
@@ -1339,12 +1514,32 @@ def search_semantic(body: SearchRequest):
 
 
 @app.post("/search/visual_region")
-def search_visual_region(body: SearchRequest):
-    """Direct Phase 3B Localized Visual Region Search."""
+def search_visual_region(
+    body: SearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Direct Phase 3B Localized Visual Region Search with tenant scoping."""
+    if current_user.get("id") == -1:
+        return {
+            "query": body.query,
+            "search_type": "visual",
+            "count": 0,
+            "total_matches": 0,
+            "message": "No relevant documents found.",
+            "results": [],
+            "matched_images": [],
+        }
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
     v_engine = get_visual_search_engine()
-    v_matches = v_engine.search(body.query, top_k=10, threshold=0.24)
+    v_matches = v_engine.search(body.query, top_k=25, threshold=0.24)
     formatted = []
     for doc in v_matches:
+        img_id = doc["id"]
+        db_row = database.get_image_by_id(img_id, user_id=scoped_user_id) if img_id else None
+        if not db_row:
+            continue
+
         img_name = doc["image_name"]
         raw_text = doc.get("extracted_text", "")
         best_reg = doc.get("best_region", {})
@@ -1369,18 +1564,20 @@ def search_visual_region(body: SearchRequest):
             "similarity_score": doc["similarity_score"],
             "has_visual_objects": True,
             "visual_objects": visual_objects,
-            "visual_summary": f"Matched {body.query} at {best_reg.get('location_desc', 'Document')}",
+            "visual_summary": f"Detected 1 sub-region match at {best_reg.get('location_desc', 'Region')}",
         }
         item.update(h_data)
         formatted.append(item)
 
     collapsed_formatted = collapse_duplicate_results(formatted)
+    msg = "No relevant visual objects found." if len(collapsed_formatted) == 0 else f"Found {len(collapsed_formatted)} relevant visual region(s)."
+
     return {
         "query": body.query,
         "search_type": "visual",
         "count": len(collapsed_formatted),
         "total_matches": len(collapsed_formatted),
-        "message": f"Found {len(collapsed_formatted)} visual match(es).",
+        "message": msg,
         "results": collapsed_formatted,
         "matched_images": collapsed_formatted,
     }
@@ -1394,7 +1591,10 @@ from app.filters.range_filters import filter_by_amount_range
 
 
 @app.get("/analyze-tampering/{image_id}")
-def analyze_tampering(image_id: int):
+def analyze_tampering(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Advanced Feature 1: Document Tampering & Photo Edit Detection (Error Level Analysis ELA).
     Detects photoshopped text, cloned pixels, or image manipulation.
@@ -1402,12 +1602,18 @@ def analyze_tampering(image_id: int):
     row = database.get_image(image_id)
     if not row:
         raise HTTPException(status_code=404, detail="Image not found")
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Tenant access denied: You do not have permission to analyze another user's document.")
+
     img_path = Path(row["image_path"])
     return tamper_detector.analyze_document_tampering(img_path)
 
 
 @app.get("/parse-invoice/{image_id}")
-def parse_invoice(image_id: int):
+def parse_invoice(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Advanced Feature 2: Structured Receipt & Invoice Table Parser.
     Extracts itemized tables, taxes (CGST/SGST/IGST), payment mode, and grand totals into structured JSON.
@@ -1415,6 +1621,9 @@ def parse_invoice(image_id: int):
     row = database.get_image(image_id)
     if not row:
         raise HTTPException(status_code=404, detail="Image not found")
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Tenant access denied: You do not have permission to parse another user's invoice.")
+
     text = row.get("extracted_text", "")
     return invoice_parser.parse_invoice_structure(text)
 
@@ -1430,12 +1639,16 @@ def translate_indic(payload: Dict[str, str]):
 
 
 @app.get("/knowledge-graph")
-def get_knowledge_graph(user_id: int = 1):
+def get_knowledge_graph(
+    user_id: Optional[int] = None,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Advanced Feature 4: Document Knowledge Graph & Entity Relationship Linker.
-    Generates a global network graph linking related documents by Aadhaar, Phone, PAN, Name, & Application IDs.
+    Scoped strictly to the authenticated user's documents.
     """
-    return knowledge_graph.generate_document_knowledge_graph(user_id=user_id)
+    effective_id = current_user.get("id") if not current_user.get("is_admin", False) else (user_id or current_user.get("id"))
+    return knowledge_graph.generate_document_knowledge_graph(user_id=effective_id)
 
 
 # ==============================================================================
@@ -1492,7 +1705,10 @@ _entropy_ranker = entropy_fusion.EntropyAdaptiveMultiModalRanker()
 
 
 @app.post("/patentable/stego-crypto-bind/{image_id}")
-def stego_crypto_bind(image_id: int):
+def stego_crypto_bind(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Patentable Invention 1 (2026): ZK-Stego Cryptographic Hash Binding Engine.
     Embeds an encrypted HMAC-SHA256 signature of OCR & Entity data directly into image pixels.
@@ -1500,6 +1716,9 @@ def stego_crypto_bind(image_id: int):
     row = database.get_image(image_id)
     if not row:
         raise HTTPException(404, "Image not found")
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(403, "Tenant access denied: You do not have permission to access another user's document.")
+
     img_path = Path(row["image_path"])
     entities = row.get("entities", {})
     ocr_text = row.get("extracted_text", "")
@@ -1514,7 +1733,10 @@ def stego_crypto_bind(image_id: int):
 
 
 @app.get("/patentable/forgery-localizer/{image_id}")
-def localize_forged_fields(image_id: int):
+def localize_forged_fields(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Patentable Invention 2 (2026): Real-Time Spatial Forgery Field Localization Engine.
     Overlays ELA pixel variance onto OCR bounding boxes to pinpoint specifically forged text fields.
@@ -1522,6 +1744,9 @@ def localize_forged_fields(image_id: int):
     row = database.get_image(image_id)
     if not row:
         raise HTTPException(404, "Image not found")
+    if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+        raise HTTPException(403, "Tenant access denied: You do not have permission to access another user's document.")
+
     img_path = Path(row["image_path"])
     word_boxes = row.get("word_boxes", [])
     if not word_boxes:
@@ -1569,7 +1794,7 @@ def export_document_pdf(
     Exports a high-resolution, searchable PDF of the document
     with an embedded invisible OCR text layer for Ctrl+F search & selection.
     """
-    row = database.get_image(image_id)
+    row = database.get_image(image_id, include_quarantined=True)
     if not row:
         raise HTTPException(404, "Image not found")
 
@@ -1598,9 +1823,13 @@ def export_document_pdf(
 
 
 @app.post("/images/export-multi-pdf")
-def export_multi_document_pdf(payload: Dict[str, Any]):
+def export_multi_document_pdf(
+    payload: Dict[str, Any],
+    current_user: dict = Depends(auth.get_current_user),
+):
     """
     Compiles multiple scanned documents into a single multi-page searchable PDF.
+    Validates ownership of every document ID.
     """
     image_ids = payload.get("image_ids", [])
     if not image_ids:
@@ -1609,7 +1838,12 @@ def export_multi_document_pdf(payload: Dict[str, Any]):
     docs_to_compile = []
     for iid in image_ids:
         row = database.get_image(iid)
-        if row and Path(row["image_path"]).exists():
+        if not row:
+            raise HTTPException(404, f"Document with ID {iid} not found.")
+        if not current_user.get("is_admin", False) and row.get("user_id") != current_user.get("id"):
+            raise HTTPException(403, f"Tenant access denied: You do not have permission to export document {iid}.")
+
+        if Path(row["image_path"]).exists():
             docs_to_compile.append({
                 "image_path": row["image_path"],
                 "ocr_text": row.get("extracted_text", ""),
@@ -1634,9 +1868,10 @@ def export_multi_document_pdf(payload: Dict[str, Any]):
 def download_app_apk():
     """Directly serves the Android APK so any phone can download and install DocuLens AI via browser."""
     candidates = [
+        ROOT_DIR / "DocuLens_AI_App.apk",
         Path(__file__).resolve().parents[2] / "DocuLens_AI_App.apk",
         Path(__file__).resolve().parents[3] / "DocuLens_AI_App.apk",
-        Path(__file__).resolve().parents[2] / "mobile_app" / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
+        ROOT_DIR / "mobile_app" / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
     ]
     existing = [p for p in candidates if p.is_file()]
     if existing:

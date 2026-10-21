@@ -12,7 +12,9 @@ venv/
 # Secrets & Environment
 .env
 *.env
+.env.*
 *.env.local
+!.env.example
 
 
 # Flutter / Dart
@@ -45,15 +47,30 @@ scratch/
 *.jpg
 *.jpeg
 
-# Binaries & Backups
+# Binaries, Archives & Backups
 *.exe
 *.apk
+*.zip
+*.tar.gz
 *.db-shm
 *.db-wal
 *.bak*
+phase5_backup/
+
+# SQLite Databases & Pickled Model Embeddings (CRITICAL FOR PRIVACY)
+*.db
+*.sqlite
+*.sqlite3
+*.db-*
+*.pkl
+backend/*.db
+database/*.db
+database/*.db.*
 database/*.backup*
 database/*.bak*
 database/*backup*
-database/*.db.*
 database/backups/
-phase5_backup/
+database/*.pkl
+database/embeddings.pkl
+!database/.gitkeep
+

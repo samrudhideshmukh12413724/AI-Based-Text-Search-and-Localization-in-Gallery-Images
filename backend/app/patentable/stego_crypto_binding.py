@@ -5,6 +5,7 @@ and extracted entity metadata directly into the image's Least Significant Bit (L
 Creates self-verifying, tamper-evident document images.
 """
 
+import os
 import hmac
 import hashlib
 import json
@@ -14,7 +15,7 @@ import cv2
 import numpy as np
 
 
-SECRET_HMAC_KEY = b"2026-patentable-zk-stego-secret-key-ocr-search"
+SECRET_HMAC_KEY = os.getenv("STEGO_HMAC_KEY", "2026-patentable-zk-stego-secret-key-ocr-search").encode("utf-8")
 
 
 def generate_document_hmac(image_input: Union[str, Path, np.ndarray], ocr_text: str, entities: Dict[str, Any]) -> str:

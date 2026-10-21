@@ -976,6 +976,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Image.network(
                         imageUrl,
+                        headers: ApiService.authHeaders,
                         cacheWidth: 1600,
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
@@ -1279,6 +1280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
                       rel.imageUrl,
+                      headers: ApiService.authHeaders,
                       width: 56,
                       height: 72,
                       cacheWidth: 120,
@@ -2779,6 +2781,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(9),
                         child: Image.network(
                           result.imageUrl,
+                          headers: ApiService.authHeaders,
                           height: 250,
                           width: 190,
                           cacheWidth: 380,
@@ -3214,6 +3217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(
                         rel.imageUrl,
+                        headers: ApiService.authHeaders,
                         width: 50,
                         height: 66,
                         cacheWidth: 100,

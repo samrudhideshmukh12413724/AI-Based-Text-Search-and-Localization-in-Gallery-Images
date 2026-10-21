@@ -27,9 +27,11 @@ def check_duplicate(
     image_path: Union[str, Path],
     exclude_image_id: Optional[int] = None,
     max_hamming_distance: int = 5,
+    user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Evaluates an incoming image against indexed images to detect duplicates.
+    Strictly isolated to user_id (tenant boundary) and excludes quarantined records.
 
     Returns:
     {
@@ -74,16 +76,27 @@ def check_duplicate(
     ex_id = exclude_image_id if exclude_image_id is not None else -1
 
     with database._connect() as conn:
-        # 1. Check exact binary match (SHA-256)
-        row_sha = conn.execute(
-            """
-            SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
-            FROM images
-            WHERE sha256_hash = ? AND id != ?
-            LIMIT 1
-            """,
-            (sha256_val, ex_id),
-        ).fetchone()
+        # 1. Check exact binary match (SHA-256) scoped to current tenant
+        if user_id is not None:
+            row_sha = conn.execute(
+                """
+                SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE sha256_hash = ? AND id != ? AND user_id = ? AND is_quarantined = 0
+                LIMIT 1
+                """,
+                (sha256_val, ex_id, user_id),
+            ).fetchone()
+        else:
+            row_sha = conn.execute(
+                """
+                SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE sha256_hash = ? AND id != ? AND is_quarantined = 0
+                LIMIT 1
+                """,
+                (sha256_val, ex_id),
+            ).fetchone()
 
         if row_sha:
             canonical_id = row_sha["canonical_image_id"] if row_sha["canonical_image_id"] else row_sha["id"]
@@ -98,16 +111,27 @@ def check_duplicate(
                 "phash": phash_val,
             }
 
-        # 2. Check exact perceptual match (pHash dist = 0 via SQL index)
-        row_phash = conn.execute(
-            """
-            SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
-            FROM images
-            WHERE phash = ? AND id != ?
-            LIMIT 1
-            """,
-            (phash_val, ex_id),
-        ).fetchone()
+        # 2. Check exact perceptual match (pHash dist = 0 via SQL index) scoped to current tenant
+        if user_id is not None:
+            row_phash = conn.execute(
+                """
+                SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE phash = ? AND id != ? AND user_id = ? AND is_quarantined = 0
+                LIMIT 1
+                """,
+                (phash_val, ex_id, user_id),
+            ).fetchone()
+        else:
+            row_phash = conn.execute(
+                """
+                SELECT id, image_name, image_path, sha256_hash, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE phash = ? AND id != ? AND is_quarantined = 0
+                LIMIT 1
+                """,
+                (phash_val, ex_id),
+            ).fetchone()
 
         if row_phash:
             canonical_id = row_phash["canonical_image_id"] if row_phash["canonical_image_id"] else row_phash["id"]
@@ -122,15 +146,25 @@ def check_duplicate(
                 "phash": phash_val,
             }
 
-        # 3. Near-duplicate scan across indexed pHashes in Python
-        candidates = conn.execute(
-            """
-            SELECT id, image_name, image_path, phash, canonical_image_id, is_duplicate
-            FROM images
-            WHERE phash IS NOT NULL AND phash != '' AND id != ?
-            """,
-            (ex_id,),
-        ).fetchall()
+        # 3. Near-duplicate scan across indexed pHashes scoped to current tenant
+        if user_id is not None:
+            candidates = conn.execute(
+                """
+                SELECT id, image_name, image_path, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE phash IS NOT NULL AND phash != '' AND id != ? AND user_id = ? AND is_quarantined = 0
+                """,
+                (ex_id, user_id),
+            ).fetchall()
+        else:
+            candidates = conn.execute(
+                """
+                SELECT id, image_name, image_path, phash, canonical_image_id, is_duplicate
+                FROM images
+                WHERE phash IS NOT NULL AND phash != '' AND id != ? AND is_quarantined = 0
+                """,
+                (ex_id,),
+            ).fetchall()
 
     best_dist = 64
     best_candidate = None

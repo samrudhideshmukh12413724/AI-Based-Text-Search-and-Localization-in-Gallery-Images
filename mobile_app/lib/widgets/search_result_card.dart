@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/search_result.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class SearchResultCard extends StatelessWidget {
@@ -139,6 +140,7 @@ class SearchResultCard extends StatelessWidget {
                     child: result.imageUrl.isNotEmpty
                         ? Image.network(
                             result.imageUrl,
+                            headers: ApiService.authHeaders,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _buildThumbPlaceholder(isPdf),
                           )

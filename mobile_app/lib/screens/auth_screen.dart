@@ -55,6 +55,19 @@ class _AuthScreenState extends State<AuthScreen> {
         _navigateToMainShell();
       }
     } catch (e) {
+      // Auto-probe candidate URLs in case the network IP changed
+      try {
+        await _api.findWorkingBaseUrl();
+        if (_isRegisterMode) {
+          await _api.register(username, password);
+        }
+        await _api.login(username, password);
+        if (mounted) {
+          _navigateToMainShell();
+          return;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -72,6 +85,100 @@ class _AuthScreenState extends State<AuthScreen> {
     _navigateToMainShell();
   }
 
+  void _showServerConfigDialog() {
+    final controller = TextEditingController(text: ApiService.baseUrl);
+    bool testing = false;
+    String? statusMsg;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.dns_rounded, color: AppTheme.primary, size: 22),
+              SizedBox(width: 8),
+              Text('Server Connection', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter your backend server IP or tunnel URL:',
+                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: 'http://10.81.62.241:8000',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                style: const TextStyle(fontSize: 13.5),
+              ),
+              if (statusMsg != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  statusMsg!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusMsg!.contains('✅') ? Colors.green : AppTheme.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: testing
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        testing = true;
+                        statusMsg = null;
+                      });
+                      final newUrl = controller.text.trim();
+                      ApiService.setCustomIp(newUrl);
+                      try {
+                        final working = await _api.findWorkingBaseUrl();
+                        setDialogState(() {
+                          statusMsg = 'Connected: $working ✅';
+                          testing = false;
+                        });
+                        setState(() {});
+                        Future.delayed(const Duration(milliseconds: 700), () {
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        });
+                      } catch (err) {
+                        setDialogState(() {
+                          statusMsg = 'Connection failed: $err ❌';
+                          testing = false;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: testing
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Save & Test', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,11 +186,40 @@ class _AuthScreenState extends State<AuthScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Server Config Icon Header
+                Align(
+                  alignment: Alignment.topRight,
+                  child: InkWell(
+                    onTap: _showServerConfigDialog,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_tethering, size: 14, color: AppTheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            ApiService.baseUrl.replaceFirst('http://', '').replaceFirst('https://', ''),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
                 // Logo & Header
                 Container(
                   width: 52,

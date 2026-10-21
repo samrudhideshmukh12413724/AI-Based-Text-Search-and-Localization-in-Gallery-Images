@@ -187,8 +187,8 @@ class SyncWorkerManager:
             print(f"[SyncWorker] Destination file {dest_path} not found on disk, skipping.")
             return
 
-        # 1. Duplicate & Near-Duplicate Detection (Phase 4 Step 5)
-        dupe_res = check_duplicate(dest_path)
+        # 1. Duplicate & Near-Duplicate Detection (Phase 4 Step 5 - Isolated to Tenant)
+        dupe_res = check_duplicate(dest_path, user_id=job.user_id)
         is_dupe = 1 if dupe_res.get("is_duplicate") else 0
         canon_id = dupe_res.get("canonical_id")
         dupe_sim = float(dupe_res.get("similarity", 0.0)) if is_dupe else 0.0

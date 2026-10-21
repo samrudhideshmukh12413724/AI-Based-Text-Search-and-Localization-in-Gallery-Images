@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'screens/auth_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+import 'services/api_service.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiService.getGuestSessionId();
   runApp(const AiImageSearchApp());
 }
 

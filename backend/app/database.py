@@ -1,11 +1,12 @@
 """SQLite storage for image names, paths, extracted OCR text, Phase 3 visual object metadata, and Phase 3B visual region embeddings."""
 
+import os
 import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(os.getenv("DOCULENS_ROOT", str(Path(__file__).resolve().parents[2])))
 DB_PATH = ROOT_DIR / "database" / "images.db"
 
 
@@ -103,10 +104,15 @@ def init_db() -> None:
             conn.execute("ALTER TABLE images ADD COLUMN indexing_status TEXT DEFAULT 'completed'")
         if "is_demo" not in columns:
             conn.execute("ALTER TABLE images ADD COLUMN is_demo INTEGER DEFAULT 0")
+        if "is_quarantined" not in columns:
+            conn.execute("ALTER TABLE images ADD COLUMN is_quarantined INTEGER DEFAULT 0")
+            # Automatically quarantine unassigned historical documents created under user_id=1
+            conn.execute("UPDATE images SET is_quarantined = 1, is_demo = 0 WHERE user_id = 1")
 
         # Indexes for fast lookup
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_is_demo ON images(is_demo)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_images_is_quarantined ON images(is_quarantined)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_indexing_status ON images(indexing_status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_phash ON images(phash)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_images_sha256 ON images(sha256_hash)")
@@ -177,9 +183,10 @@ def _parse_row(row: sqlite3.Row | None) -> dict | None:
         except Exception:
             d["entities"] = {}
 
-    # Ensure indexing_status and is_demo fields exist
+    # Ensure indexing_status, is_demo, and is_quarantined fields exist
     d["indexing_status"] = d.get("indexing_status") or "completed"
     d["is_demo"] = int(d.get("is_demo") or 0)
+    d["is_quarantined"] = int(d.get("is_quarantined") or 0)
     return d
 
 
@@ -212,22 +219,24 @@ def save_image(
     user_id: int = 1,
     qr_payload: str = "",
     is_demo: int | None = None,
+    is_quarantined: int = 0,
 ) -> dict:
     created_at = datetime.now(timezone.utc).isoformat()
     orig = original_ocr_text or extracted_text
     cleaned = cleaned_text or extracted_text
     v_meta_str = json.dumps(visual_metadata) if isinstance(visual_metadata, dict) else (visual_metadata or "{}")
     ent_str = json.dumps(entities) if isinstance(entities, dict) else (entities or "{}")
-    demo_val = 1 if (is_demo is True or is_demo == 1 or (is_demo is None and user_id == 1)) else 0
+    demo_val = 1 if (is_demo is True or is_demo == 1) else 0
+    quar_val = 1 if is_quarantined else 0
 
     with _connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO images (
                 image_name, image_path, extracted_text, original_ocr_text, 
-                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at, user_id, qr_payload, is_demo
+                cleaned_text, category, has_visual_objects, visual_metadata, entities_json, created_at, user_id, qr_payload, is_demo, is_quarantined
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(image_path) DO UPDATE SET
                 image_name = excluded.image_name,
                 extracted_text = excluded.extracted_text,
@@ -240,9 +249,10 @@ def save_image(
                 created_at = excluded.created_at,
                 user_id = excluded.user_id,
                 qr_payload = CASE WHEN excluded.qr_payload != '' THEN excluded.qr_payload ELSE images.qr_payload END,
-                is_demo = excluded.is_demo
+                is_demo = excluded.is_demo,
+                is_quarantined = excluded.is_quarantined
             """,
-            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at, user_id, qr_payload, demo_val),
+            (image_name, image_path, extracted_text, orig, cleaned, category, has_visual_objects, v_meta_str, ent_str, created_at, user_id, qr_payload, demo_val, quar_val),
         )
         conn.commit()
         invalidate_cache()
@@ -253,7 +263,7 @@ def save_image(
             ).fetchone()
             row_id = row["id"]
 
-    return get_image_by_id(row_id)
+    return get_image_by_id(row_id, include_quarantined=bool(is_quarantined))
 
 
 def update_image_entities(image_id: int, entities: dict | str) -> None:
@@ -403,38 +413,51 @@ def _load_all_images_to_cache() -> None:
     _cached_images_by_id = by_id
 
 
-def get_image_by_id(image_id: int, user_id: int | None = None) -> dict | None:
+def get_image_by_id(image_id: int, user_id: int | None = None, include_quarantined: bool = False) -> dict | None:
     global _cached_images_by_id
     if _cached_images_by_id is None:
         _load_all_images_to_cache()
     if _cached_images_by_id is not None and image_id in _cached_images_by_id:
         row = _cached_images_by_id[image_id]
-        if user_id is None or row.get("user_id", 1) == user_id:
+        if not include_quarantined and row.get("is_quarantined", 0) == 1:
+            return None
+        if user_id is None or row.get("user_id") == user_id:
             return row
         return None
 
     with _connect() as conn:
         if user_id is not None:
-            row = conn.execute("SELECT * FROM images WHERE id = ? AND user_id = ?", (image_id, user_id)).fetchone()
+            if include_quarantined:
+                row = conn.execute("SELECT * FROM images WHERE id = ? AND user_id = ?", (image_id, user_id)).fetchone()
+            else:
+                row = conn.execute("SELECT * FROM images WHERE id = ? AND user_id = ? AND is_quarantined = 0", (image_id, user_id)).fetchone()
         else:
-            row = conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
+            if include_quarantined:
+                row = conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
+            else:
+                row = conn.execute("SELECT * FROM images WHERE id = ? AND is_quarantined = 0", (image_id,)).fetchone()
     return _parse_row(row)
 
 
 get_image = get_image_by_id
 
 
-def list_images(user_id: int | None = None) -> list[dict]:
+def list_images(user_id: int | None = None, include_quarantined: bool = False) -> list[dict]:
     global _cached_images
     if _cached_images is None:
         _load_all_images_to_cache()
 
-    if user_id == 1:
-        return [r for r in _cached_images if r.get("user_id", 1) == 1 and r.get("is_demo") == 1]
-    elif user_id is not None:
-        return [r for r in _cached_images if r.get("user_id", 1) == user_id]
+    if user_id is not None:
+        return [
+            r for r in _cached_images 
+            if r.get("user_id") == user_id 
+            and (include_quarantined or r.get("is_quarantined", 0) == 0)
+        ]
     else:
-        return list(_cached_images)
+        return [
+            r for r in _cached_images 
+            if (include_quarantined or r.get("is_quarantined", 0) == 0)
+        ]
 
 
 def search_by_keyword(query: str, user_id: int | None = None) -> list[dict]:
@@ -444,7 +467,8 @@ def search_by_keyword(query: str, user_id: int | None = None) -> list[dict]:
             rows = conn.execute(
                 """
                 SELECT * FROM images
-                WHERE (LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?) AND user_id = ?
+                WHERE (LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?) 
+                  AND user_id = ? AND is_quarantined = 0
                 ORDER BY created_at DESC
                 """,
                 (pattern, pattern, pattern, user_id),
@@ -453,7 +477,8 @@ def search_by_keyword(query: str, user_id: int | None = None) -> list[dict]:
             rows = conn.execute(
                 """
                 SELECT * FROM images
-                WHERE LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?
+                WHERE (LOWER(extracted_text) LIKE ? OR LOWER(image_name) LIKE ? OR LOWER(qr_payload) LIKE ?)
+                  AND is_quarantined = 0
                 ORDER BY created_at DESC
                 """,
                 (pattern, pattern, pattern),
@@ -509,18 +534,21 @@ def save_visual_regions(image_id: int, image_name: str, regions: list[dict]) -> 
         invalidate_cache()
 
 
-def get_all_visual_regions() -> list[dict]:
+def get_all_visual_regions(user_id: int | None = None) -> list[dict]:
     """Retrieves all visual regions with embeddings and associated image paths (cached in RAM)."""
     global _cached_visual_regions
     if _cached_visual_regions is not None:
+        if user_id is not None:
+            return [r for r in _cached_visual_regions if r.get("user_id") == user_id]
         return list(_cached_visual_regions)
 
     with _connect() as conn:
         rows = conn.execute(
             """
-            SELECT vr.*, img.image_path, img.extracted_text, img.category
+            SELECT vr.*, img.image_path, img.extracted_text, img.category, img.user_id, img.is_quarantined
             FROM visual_regions vr
             JOIN images img ON vr.image_id = img.id
+            WHERE img.is_quarantined = 0
             """
         ).fetchall()
 
@@ -531,6 +559,8 @@ def get_all_visual_regions() -> list[dict]:
         d["normalized_bbox"] = json.loads(d["norm_bbox_json"]) if d.get("norm_bbox_json") else {}
         results.append(d)
     _cached_visual_regions = results
+    if user_id is not None:
+        return [r for r in results if r.get("user_id") == user_id]
     return results
 
 
@@ -682,7 +712,7 @@ def list_users() -> list[dict]:
     """Returns a list of registered users for multi-tenant switching and UI selection."""
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT id, username, is_admin, created_at FROM users ORDER BY id ASC"
+            "SELECT id, username, is_admin, created_at FROM users WHERE username NOT LIKE 'guest_%' ORDER BY id ASC"
         ).fetchall()
     res = []
     for r in rows:
@@ -690,6 +720,79 @@ def list_users() -> list[dict]:
         d["is_admin"] = bool(d.get("is_admin", 0))
         res.append(d)
     return res
+
+
+def get_or_create_guest_user(guest_session_id: str) -> dict:
+    """
+    Retrieves or creates an isolated guest tenant account mapped to a unique client session ID.
+    Guarantees no two guest devices share the same tenant/user ID.
+    """
+    import hashlib
+    clean_id = guest_session_id.strip()
+    if not clean_id or len(clean_id) < 8:
+        raise ValueError("Invalid guest_session_id: must be at least 8 characters.")
+    
+    # Deterministic guest username derived from session ID hash
+    sess_hash = hashlib.sha256(clean_id.encode("utf-8")).hexdigest()[:16]
+    guest_username = f"guest_{sess_hash}"
+
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (guest_username,)).fetchone()
+        if row:
+            return {
+                "id": row["id"],
+                "username": row["username"],
+                "is_admin": bool(row["is_admin"]),
+                "created_at": row["created_at"],
+            }
+        
+        # Create dedicated isolated guest user
+        created_at = datetime.now(timezone.utc).isoformat()
+        cursor = conn.execute(
+            """
+            INSERT INTO users (username, hashed_password, is_admin, created_at)
+            VALUES (?, 'GUEST_SESSION_EPHEMERAL', 0, ?)
+            """,
+            (guest_username, created_at),
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        return {
+            "id": user_id,
+            "username": guest_username,
+            "is_admin": False,
+            "created_at": created_at,
+        }
+
+
+def delete_image(image_id: int, user_id: int | None = None) -> bool:
+    """Safely deletes an image record and related visual regions/relationships if owned by user_id (or admin)."""
+    with _connect() as conn:
+        if user_id is not None:
+            row = conn.execute("SELECT * FROM images WHERE id = ? AND user_id = ?", (image_id, user_id)).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
+        if not row:
+            return False
+
+        img_dict = _parse_row(row)
+        conn.execute("DELETE FROM visual_regions WHERE image_id = ?", (image_id,))
+        conn.execute("DELETE FROM image_relationships WHERE source_image_id = ? OR target_image_id = ?", (image_id, image_id))
+        conn.execute("DELETE FROM images WHERE id = ?", (image_id,))
+        conn.commit()
+
+    invalidate_cache()
+
+    # Safely remove physical file from disk if it exists
+    if img_dict and img_dict.get("image_path"):
+        try:
+            p = Path(img_dict["image_path"])
+            if p.is_file() and p.resolve().is_relative_to(ROOT_DIR / "uploads"):
+                p.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[Delete Image] Disk cleanup warning: {e}")
+
+    return True
 
 
 def update_image_ocr_boxes(image_id: int, word_boxes: list | str) -> None:

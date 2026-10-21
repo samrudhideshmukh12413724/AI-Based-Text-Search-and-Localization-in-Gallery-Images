@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/search_result.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bounding_box_painter.dart';
 
@@ -72,6 +73,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                 children: [
                   Image.network(
                     widget.imageUrl,
+                    headers: ApiService.authHeaders,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 64, color: Colors.white54),
                   ),
@@ -161,6 +163,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                         child: Center(
                           child: Image.network(
                             widget.imageUrl,
+                            headers: ApiService.authHeaders,
                             fit: BoxFit.contain,
                             loadingBuilder: (_, child, progress) {
                               if (progress == null) return child;

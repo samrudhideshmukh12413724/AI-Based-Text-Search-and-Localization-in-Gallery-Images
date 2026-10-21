@@ -297,16 +297,13 @@ def find_relationships_between_images(
     return relationships
 
 
-def link_corpus(persist: bool = True, canonical_only: bool = True) -> List[Dict[str, Any]]:
+def link_corpus(persist: bool = True, canonical_only: bool = True, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Scans the entire gallery corpus in SQLite, discovers valid cross-image relationships
-    between distinct non-duplicate documents, and optionally persists them into the
+    Scans the gallery corpus in SQLite, discovers valid cross-image relationships
+    between distinct non-duplicate documents belonging to the SAME user, and optionally persists them into the
     `image_relationships` table.
-
-    When canonical_only=True (default), processes only valid canonical/non-duplicate images (is_duplicate == 0)
-    for relationship discovery, ensuring zero duplicate-variant links.
     """
-    all_images = database.list_images()
+    all_images = database.list_images(user_id=user_id)
     if canonical_only:
         images = [img for img in all_images if not img.get("is_duplicate")]
     else:
@@ -317,8 +314,8 @@ def link_corpus(persist: bool = True, canonical_only: bool = True) -> List[Dict[
 
     discovered_relationships: List[Dict[str, Any]] = []
 
-    # If persisting, clear existing table first for a clean state
-    if persist:
+    # If persisting and user_id is None, clear existing table first for a clean state
+    if persist and user_id is None:
         database.clear_all_relationships()
 
     num_images = len(images)
@@ -326,6 +323,10 @@ def link_corpus(persist: bool = True, canonical_only: bool = True) -> List[Dict[
         for j in range(i + 1, num_images):
             img_a = images[i]
             img_b = images[j]
+
+            # Strict tenant isolation check: NEVER link across different user accounts
+            if img_a.get("user_id") != img_b.get("user_id"):
+                continue
 
             # Fast skip if duplicates
             if are_duplicates(img_a, img_b):
@@ -350,7 +351,7 @@ def link_corpus(persist: bool = True, canonical_only: bool = True) -> List[Dict[
 def link_image(image_id: int, persist: bool = True) -> List[Dict[str, Any]]:
     """
     Discovers relationships for a single image against all other non-duplicate
-    images in the SQLite corpus.
+    images belonging to the SAME user in SQLite.
     """
     target_image = database.get_image_by_id(image_id)
     if not target_image:
@@ -362,7 +363,11 @@ def link_image(image_id: int, persist: bool = True) -> List[Dict[str, Any]]:
         if not target_image:
             return []
 
-    canonical_images = [img for img in database.list_images() if not img.get("is_duplicate")]
+    user_id = target_image.get("user_id")
+    canonical_images = [
+        img for img in database.list_images(user_id=user_id) 
+        if not img.get("is_duplicate") and img.get("id") != target_image["id"]
+    ]
     discovered: List[Dict[str, Any]] = []
 
     for other_image in canonical_images:
@@ -387,23 +392,31 @@ def link_image(image_id: int, persist: bool = True) -> List[Dict[str, Any]]:
     return discovered
 
 
-def get_image_relationships(image_id: int) -> List[Dict[str, Any]]:
+def get_image_relationships(image_id: int, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     Retrieves all stored cross-image relationships for an image from SQLite,
     enriched with human-readable reason and target image metadata.
-
-    If the queried image is a duplicate variant, resolves to its canonical image ID
-    so that relationships discovered for the document cluster are seamlessly surfaced.
+    Enforces strict tenant isolation: only returns relationships to images owned by the user.
     """
-    img = database.get_image_by_id(image_id)
+    img = database.get_image_by_id(image_id, user_id=user_id)
+    if not img:
+        return []
+
     lookup_id = image_id
-    if img and img.get("is_duplicate") and img.get("canonical_image_id"):
+    if img.get("is_duplicate") and img.get("canonical_image_id"):
         lookup_id = img["canonical_image_id"]
 
+    target_user_id = user_id if user_id is not None else img.get("user_id")
     raw_relationships = database.get_related_images(lookup_id)
     formatted = []
     for r in raw_relationships:
         item = dict(r)
+        target_doc = database.get_image_by_id(item["target_image_id"])
+        if not target_doc:
+            continue
+        if target_user_id is not None and target_doc.get("user_id") != target_user_id:
+            continue
+
         rel_type = item.get("relationship_type", "")
         evidence = item.get("evidence", "")
         type_clean = rel_type.replace("shared_", "").replace("_", " ").title()

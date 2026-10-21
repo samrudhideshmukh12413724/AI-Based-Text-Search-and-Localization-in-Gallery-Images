@@ -1,28 +1,70 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/search_result.dart';
 
 class ApiService {
   // Primary active URL for physical phone (LAN) and web/USB reverse
-  static String _activeBaseUrl = kIsWeb ? 'http://127.0.0.1:8000' : 'http://192.168.1.3:8000';
+  static String _activeBaseUrl = kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.81.62.241:8000';
   static String? customIp;
 
   // Multi-User Tenant Authentication State
   static String? authToken;
   static Map<String, dynamic>? currentUser;
+  static String? _guestSessionId;
 
   static bool get isLoggedIn => authToken != null && authToken!.isNotEmpty;
-  static String get currentUsername => currentUser?['username'] as String? ?? 'Guest (Public)';
+  static String get currentUsername => currentUser?['username'] as String? ?? 'Guest Vault';
   static int get currentUserId => currentUser?['id'] as int? ?? 1;
   static bool get isCurrentUserAdmin => currentUser?['is_admin'] as bool? ?? false;
+
+  /// Retrieves or generates a stable, client-specific Guest Session UUID.
+  /// Persisted in SharedPreferences so this device's guest vault is completely isolated from other devices.
+  static Future<String> getGuestSessionId() async {
+    if (_guestSessionId != null && _guestSessionId!.isNotEmpty) {
+      return _guestSessionId!;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? stored = prefs.getString('doculens_guest_session_id');
+      if (stored == null || stored.isEmpty) {
+        final rand = Random.secure();
+        final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+        stored = 'guest_${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+        await prefs.setString('doculens_guest_session_id', stored);
+      }
+      _guestSessionId = stored;
+      return stored;
+    } catch (_) {
+      if (_guestSessionId == null) {
+        final rand = Random();
+        final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+        _guestSessionId = 'guest_${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+      }
+      return _guestSessionId!;
+    }
+  }
+
+  /// Synchronous accessor for headers, using initialized or deterministic device session token.
+  static String get syncGuestSessionId {
+    if (_guestSessionId == null || _guestSessionId!.isEmpty) {
+      final rand = Random();
+      final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+      _guestSessionId = 'guest_${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+    }
+    return _guestSessionId!;
+  }
 
   static Map<String, String> get authHeaders {
     final headers = <String, String>{
       'Content-Type': 'application/json',
+      'X-Guest-Session-ID': syncGuestSessionId,
     };
     if (authToken != null && authToken!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $authToken';
@@ -39,12 +81,13 @@ class ApiService {
       list.add('http://127.0.0.1:8000');
       list.add('http://localhost:8000');
     } else {
-      list.add('http://192.168.1.3:8000'); // Primary Wi-Fi LAN IP (Laptop)
-      list.add('http://127.0.0.1:8000');   // ADB reverse loopback
-      list.add('http://10.0.2.2:8000');    // Android Emulator loopback
-      list.add('http://192.168.1.2:8000'); // Alternate Wi-Fi LAN IP
-      list.add('http://192.168.1.4:8000'); // Alternate Wi-Fi LAN IP
-      list.add('http://192.168.1.7:8000'); // Alternate Wi-Fi LAN IP
+      list.add('http://10.81.62.241:8000'); // Current Laptop LAN IP
+      list.add('http://192.168.1.3:8000');  // Alternate Wi-Fi LAN IP
+      list.add('http://127.0.0.1:8000');    // ADB reverse loopback
+      list.add('http://10.0.2.2:8000');     // Android Emulator loopback
+      list.add('http://192.168.1.2:8000');  // Alternate Wi-Fi LAN IP
+      list.add('http://192.168.1.4:8000');  // Alternate Wi-Fi LAN IP
+      list.add('http://192.168.1.7:8000');  // Alternate Wi-Fi LAN IP
     }
     return list;
   }
@@ -79,6 +122,9 @@ class ApiService {
           _activeBaseUrl = clean.endsWith(':8000') ? clean : '$clean:8000';
         }
       }
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('doculens_custom_ip', _activeBaseUrl);
+      }).catchError((_) {});
     }
   }
 
@@ -86,7 +132,7 @@ class ApiService {
   Future<String> findWorkingBaseUrl() async {
     for (final url in candidateUrls) {
       try {
-        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 5000));
+        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 3000));
         if (res.statusCode == 200) {
           _activeBaseUrl = url;
           return url;
@@ -158,10 +204,13 @@ class ApiService {
     }
   }
 
-  /// Logout current active user and revert to public guest mode.
+  /// Logout current active user and revert to isolated guest mode.
   void logout() {
     authToken = null;
     currentUser = null;
+    // Invalidate in-memory image cache to prevent cross-account display leaks
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
   }
 
   /// Fetch list of registered users for quick tenant profile switching.
@@ -233,6 +282,7 @@ class ApiService {
       try {
         final uri = Uri.parse('$_activeBaseUrl/upload${asyncProcessing ? '?async_processing=true' : ''}');
         final request = http.MultipartRequest('POST', uri);
+        request.headers['X-Guest-Session-ID'] = syncGuestSessionId;
         if (authToken != null && authToken!.isNotEmpty) {
           request.headers['Authorization'] = 'Bearer $authToken';
         }
@@ -340,5 +390,23 @@ class ApiService {
       throw Exception('Multi-page PDF compilation failed');
     }
     return response.bodyBytes;
+  }
+
+  /// Safely deletes a document and purges local in-memory image cache
+  Future<bool> deleteDocument(int imageId) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$_activeBaseUrl/images/$imageId'),
+        headers: authHeaders,
+      ).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 }

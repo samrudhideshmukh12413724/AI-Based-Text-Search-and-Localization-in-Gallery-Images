@@ -265,6 +265,7 @@ class _VaultTabState extends State<VaultTab> {
                                           child: fullUrl.isNotEmpty && !isPdf
                                               ? Image.network(
                                                   fullUrl,
+                                                  headers: ApiService.authHeaders,
                                                   fit: BoxFit.cover,
                                                   errorBuilder: (_, __, ___) => _buildPlaceholder(isPdf),
                                                 )
