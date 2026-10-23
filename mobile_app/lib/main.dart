@@ -6,6 +6,7 @@ import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiService.init();
   await ApiService.getGuestSessionId();
   runApp(const AiImageSearchApp());
 }

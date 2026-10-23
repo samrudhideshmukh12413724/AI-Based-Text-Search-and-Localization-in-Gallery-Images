@@ -10,8 +10,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_result.dart';
 
 class ApiService {
-  // Primary active URL for physical phone (LAN) and web/USB reverse
-  static String _activeBaseUrl = kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.81.62.241:8000';
+  // Live AWS EC2 Cloud Server (Runs 24/7 on AWS Free Tier, accessible anywhere on 4G/5G/Wi-Fi)
+  static const String defaultLiveTunnelUrl = 'http://23.20.73.86:8000';
+
+  // Primary active URL for physical phone, cloud, and web/USB reverse
+  static String _activeBaseUrl = kIsWeb ? 'http://127.0.0.1:8000' : defaultLiveTunnelUrl;
   static String? customIp;
 
   // Multi-User Tenant Authentication State
@@ -23,6 +26,17 @@ class ApiService {
   static String get currentUsername => currentUser?['username'] as String? ?? 'Guest Vault';
   static int get currentUserId => currentUser?['id'] as int? ?? 1;
   static bool get isCurrentUserAdmin => currentUser?['is_admin'] as bool? ?? false;
+
+  /// Initialize API service state from SharedPreferences on app launch.
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUrl = prefs.getString('doculens_custom_ip');
+      if (savedUrl != null && savedUrl.trim().isNotEmpty) {
+        setCustomIp(savedUrl);
+      }
+    } catch (_) {}
+  }
 
   /// Retrieves or generates a stable, client-specific Guest Session UUID.
   /// Persisted in SharedPreferences so this device's guest vault is completely isolated from other devices.
@@ -77,17 +91,21 @@ class ApiService {
     if (customIp != null && customIp!.isNotEmpty) {
       list.add(_activeBaseUrl);
     }
+    // 1. Live Public Tunnel URL (Accessible anywhere in the world on mobile data/Wi-Fi)
+    if (!list.contains(defaultLiveTunnelUrl)) {
+      list.add(defaultLiveTunnelUrl);
+    }
     if (kIsWeb) {
-      list.add('http://127.0.0.1:8000');
-      list.add('http://localhost:8000');
+      if (!list.contains('http://127.0.0.1:8000')) list.add('http://127.0.0.1:8000');
+      if (!list.contains('http://localhost:8000')) list.add('http://localhost:8000');
     } else {
-      list.add('http://10.81.62.241:8000'); // Current Laptop LAN IP
+      // 2. Local Fallback LAN / Loopback endpoints (for offline local development)
+      list.add('http://10.81.62.241:8000'); // Laptop LAN IP
       list.add('http://192.168.1.3:8000');  // Alternate Wi-Fi LAN IP
       list.add('http://127.0.0.1:8000');    // ADB reverse loopback
       list.add('http://10.0.2.2:8000');     // Android Emulator loopback
-      list.add('http://192.168.1.2:8000');  // Alternate Wi-Fi LAN IP
-      list.add('http://192.168.1.4:8000');  // Alternate Wi-Fi LAN IP
-      list.add('http://192.168.1.7:8000');  // Alternate Wi-Fi LAN IP
+      list.add('http://192.168.1.2:8000');
+      list.add('http://192.168.1.4:8000');
     }
     return list;
   }
@@ -97,11 +115,8 @@ class ApiService {
   static void setCustomIp(String ip) {
     customIp = ip.trim();
     if (customIp!.isNotEmpty) {
-      // Clean up accidental .8000 typo or trailing slashes
       String clean = customIp!.replaceAll('.8000', '');
-      if (clean.endsWith('/')) {
-        clean = clean.substring(0, clean.length - 1);
-      }
+      clean = clean.replaceAll(RegExp(r'/+$'), '');
       if (clean.startsWith('http://') || clean.startsWith('https://')) {
         _activeBaseUrl = clean;
       } else if (clean.contains('trycloudflare.com') ||
@@ -114,7 +129,6 @@ class ApiService {
         if (!clean.startsWith('http://')) {
           clean = 'http://$clean';
         }
-        // If no port specified, append :8000
         final uri = Uri.tryParse(clean);
         if (uri != null && uri.hasPort) {
           _activeBaseUrl = clean;
@@ -122,6 +136,7 @@ class ApiService {
           _activeBaseUrl = clean.endsWith(':8000') ? clean : '$clean:8000';
         }
       }
+      _activeBaseUrl = _activeBaseUrl.replaceAll(RegExp(r'/+$'), '');
       SharedPreferences.getInstance().then((prefs) {
         prefs.setString('doculens_custom_ip', _activeBaseUrl);
       }).catchError((_) {});
@@ -132,7 +147,7 @@ class ApiService {
   Future<String> findWorkingBaseUrl() async {
     for (final url in candidateUrls) {
       try {
-        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 3000));
+        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 2500));
         if (res.statusCode == 200) {
           _activeBaseUrl = url;
           return url;
@@ -144,13 +159,35 @@ class ApiService {
     return _activeBaseUrl;
   }
 
+  /// Safe JSON response parser that prevents FormatException on HTML error pages.
+  static dynamic _safeJsonDecode(http.Response res, String actionName) {
+    final text = res.body.trim();
+    if (text.isEmpty) {
+      if (res.statusCode >= 400) {
+        throw Exception('$actionName: Server returned HTTP ${res.statusCode}');
+      }
+      return {};
+    }
+    if (text.startsWith('<') || text.startsWith('<!DOCTYPE') || (res.headers['content-type'] ?? '').contains('text/html')) {
+      throw Exception('Server returned HTML error (${res.statusCode}). Check if your backend tunnel is running at $baseUrl.');
+    }
+    try {
+      return jsonDecode(text);
+    } catch (_) {
+      throw Exception('$actionName: Invalid response from server (HTTP ${res.statusCode})');
+    }
+  }
+
   String _formatErrorMessage(Object error, String defaultMsg) {
     final errStr = error.toString();
     if (error is SocketException || errStr.contains('SocketException') || errStr.contains('Connection refused') || errStr.contains('ClientException')) {
-      return '⚠️ Backend Server Unreachable ($baseUrl).\nPlease check internet connection or verify the backend server is running.';
+      return '⚠️ Backend Server Unreachable ($baseUrl).\nPlease check server status or tap the top-right server icon to change URL.';
     }
     if (error is TimeoutException) {
-      return '⌛ Request Timed Out. Inference or upload took longer than expected. Please retry.';
+      return '⌛ Request Timed Out. Backend took longer than expected. Please retry.';
+    }
+    if (errStr.contains('FormatException') || errStr.contains('Unexpected character') || errStr.contains('HTML error') || errStr.contains('<!DOCTYPE')) {
+      return '⚠️ Server URL ($baseUrl) returned HTML instead of API data. Please tap the top-right server icon and verify your URL.';
     }
     return errStr.replaceAll('Exception: ', '');
   }
@@ -164,9 +201,9 @@ class ApiService {
         body: jsonEncode({'username': username.trim(), 'password': password}),
       ).timeout(const Duration(seconds: 15));
 
-      final body = jsonDecode(res.body);
+      final body = _safeJsonDecode(res, 'Login failed');
       if (res.statusCode >= 400) {
-        throw Exception(body['detail'] ?? 'Login failed');
+        throw Exception(body is Map && body.containsKey('detail') ? body['detail'] : 'Login failed (HTTP ${res.statusCode})');
       }
 
       authToken = body['access_token'] as String?;
@@ -194,9 +231,9 @@ class ApiService {
         }),
       ).timeout(const Duration(seconds: 15));
 
-      final body = jsonDecode(res.body);
+      final body = _safeJsonDecode(res, 'Registration failed');
       if (res.statusCode >= 400) {
-        throw Exception(body['detail'] ?? 'Registration failed');
+        throw Exception(body is Map && body.containsKey('detail') ? body['detail'] : 'Registration failed (HTTP ${res.statusCode})');
       }
       return body as Map<String, dynamic>;
     } catch (e) {
@@ -296,10 +333,10 @@ class ApiService {
 
         final streamed = await request.send().timeout(const Duration(seconds: 60));
         final response = await http.Response.fromStream(streamed);
-        final body = jsonDecode(response.body);
+        final body = _safeJsonDecode(response, 'Upload failed');
 
         if (response.statusCode >= 400) {
-          throw Exception(body['detail'] ?? 'Upload failed');
+          throw Exception(body is Map && body.containsKey('detail') ? body['detail'] : 'Upload failed (HTTP ${response.statusCode})');
         }
 
         return body as Map<String, dynamic>;
@@ -323,7 +360,8 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
-        return jsonDecode(res.body) as Map<String, dynamic>;
+        final body = _safeJsonDecode(res, 'Sync status');
+        return body is Map<String, dynamic> ? body : {};
       }
       return {};
     } catch (_) {
@@ -340,9 +378,9 @@ class ApiService {
           body: jsonEncode({'query': query}),
         ).timeout(const Duration(seconds: 45));
 
-        final body = jsonDecode(response.body);
+        final body = _safeJsonDecode(response, 'Search failed');
         if (response.statusCode >= 400) {
-          throw Exception(body['detail'] ?? 'Search failed');
+          throw Exception(body is Map && body.containsKey('detail') ? body['detail'] : 'Search failed (HTTP ${response.statusCode})');
         }
 
         return SearchResponse.fromJson(body as Map<String, dynamic>, _activeBaseUrl);

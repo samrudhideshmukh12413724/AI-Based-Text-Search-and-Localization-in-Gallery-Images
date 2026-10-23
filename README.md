@@ -1,3 +1,13 @@
+---
+title: DocuLens AI Backend
+emoji: 🔍
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # DocuLens AI: Multi-Modal Document Intelligence & In-Gallery Visual Search Engine
 
 <div align="center">

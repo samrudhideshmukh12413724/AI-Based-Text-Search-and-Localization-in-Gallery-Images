@@ -141,7 +141,7 @@ class _SettingsTabState extends State<SettingsTab> {
                   TextField(
                     controller: _ipController,
                     decoration: const InputDecoration(
-                      hintText: 'https://xxx.trycloudflare.com or 192.168.1.3:8000',
+                      hintText: 'https://xxx.hf.space or trycloudflare.com',
                       prefixIcon: Icon(Icons.dns_rounded, size: 20, color: AppTheme.primary),
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),

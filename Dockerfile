@@ -1,6 +1,6 @@
 # ==============================================================================
 # DocuLens AI - Production Cloud Dockerfile
-# Optimized for Oracle Cloud / DigitalOcean / AWS / GCP VPS (CPU PyTorch)
+# Optimized for Hugging Face Spaces (16GB RAM) & Cloud VPS (CPU PyTorch)
 # ==============================================================================
 
 FROM python:3.11-slim
@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     DOCULENS_ROOT=/app \
     PYTHONPATH=/app \
-    PORT=8000
+    PORT=7860
 
 # Install minimal OS runtime dependencies for OpenCV and image operations
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,6 +19,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Hugging Face Spaces requires a non-root user with UID 1000
+RUN useradd -m -u 1000 user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    HF_HOME=/home/user/.cache/huggingface \
+    TORCH_HOME=/home/user/.cache/torch \
+    EASYOCR_MODULE_PATH=/home/user/.EasyOCR
 
 WORKDIR /app
 
@@ -30,9 +38,16 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY backend/requirements-prod.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# 3. Copy application code and initialize safe empty storage
+# 3. Copy application code and initialize safe writable storage
 COPY backend/app /app/app
-RUN mkdir -p /app/uploads /app/database
+# Copy compiled APK if present so /download serves it
+COPY DocuLens_AI_App.apk* /app/
+
+RUN mkdir -p /app/uploads /app/database /home/user/.cache /home/user/.EasyOCR && \
+    chown -R user:user /app /home/user
+
+# Switch to non-root user for security and Hugging Face Spaces compliance
+USER user
 
 # 4. Pre-download models during build to ensure fast container boot
 RUN python -c "\
@@ -44,12 +59,12 @@ print('Pre-caching MiniLM embeddings...'); \
 SentenceTransformer('all-MiniLM-L6-v2'); \
 "
 
-# Expose port
-EXPOSE 8000
+# Expose ports (7860 for Hugging Face Spaces, 8000 for standard Docker)
+EXPOSE 7860 8000
 
 # Health check probe
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f http://127.0.0.1:8000/api/health || exit 1
+    CMD curl -f http://127.0.0.1:${PORT:-7860}/api/health || exit 1
 
-# Launch production server with Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Launch production server with Uvicorn on dynamic PORT
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]

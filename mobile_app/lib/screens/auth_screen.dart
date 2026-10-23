@@ -69,8 +69,12 @@ class _AuthScreenState extends State<AuthScreen> {
       } catch (_) {}
 
       if (mounted) {
+        String err = e.toString().replaceAll('Exception: ', '');
+        if (err.contains('Incorrect username or password')) {
+          err = 'Incorrect username or password.\n💡 New user? Tap "Create Account" below to register this username!';
+        }
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = err;
         });
       }
     } finally {
@@ -114,7 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: 'http://10.81.62.241:8000',
+                  hintText: 'https://xxx.hf.space or http://10.81.62.241:8000',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -356,7 +360,42 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                // Quick Autofill Demo Credentials
+                Center(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _usernameController.text = 'admin';
+                        _passwordController.text = 'admin123';
+                        _isRegisterMode = false;
+                        _errorMessage = null;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bolt_rounded, size: 16, color: Color(0xFF2563EB)),
+                          SizedBox(width: 6),
+                          Text(
+                            'Demo Fill: admin / admin123',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
 
                 // Sign In Button
                 SizedBox(

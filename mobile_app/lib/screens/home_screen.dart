@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/search_result.dart';
 import '../services/api_service.dart';
+import 'sync_folder_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -122,7 +123,185 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _syncDirectoryFromStorage() async {
+    try {
+      final String? selectedDir = await FilePicker.getDirectoryPath();
+      if (selectedDir == null || selectedDir.isEmpty) return;
+
+      final dir = Directory(selectedDir);
+      if (!await dir.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Storage path is restricted by Android Scoped Storage. Please tap any phone album to sync!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      final dirName = dir.path.split(Platform.pathSeparator).last;
+      setState(() {
+        _loading = true;
+        _batchStatus = 'Scanning folder "$dirName" for documents...';
+      });
+
+      final List<File> files = [];
+      await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          final p = entity.path.toLowerCase();
+          if (p.endsWith('.jpg') || p.endsWith('.jpeg') || p.endsWith('.png') || p.endsWith('.webp') || p.endsWith('.pdf')) {
+            files.add(entity);
+          }
+        }
+      }
+
+      if (files.isEmpty) {
+        setState(() {
+          _loading = false;
+          _batchStatus = 'No supported documents found in "$dirName".';
+        });
+        return;
+      }
+
+      final checkList = files.map((f) => {
+        'filename': f.path.split(Platform.pathSeparator).last,
+        'size': f.lengthSync(),
+      }).toList();
+
+      final syncStatus = await _api.checkImagesForSync(checkList);
+      final List<String> missing = (syncStatus['missing'] as List<dynamic>?)?.cast<String>() ?? [];
+      final int alreadySynced = (syncStatus['already_synced_count'] as int?) ?? (files.length - missing.length);
+
+      final toUpload = files.where((f) {
+        final name = f.path.split(Platform.pathSeparator).last;
+        return missing.contains(name);
+      }).toList();
+
+      if (toUpload.isEmpty) {
+        setState(() {
+          _loading = false;
+          _batchStatus = 'All ${files.length} documents in "$dirName" are already synced! (0 new files)';
+        });
+        return;
+      }
+
+      setState(() {
+        _batchTotal = toUpload.length;
+        _batchCurrent = 0;
+        _batchStatus = 'Syncing ${toUpload.length} documents from "$dirName" ($alreadySynced already cached)...';
+      });
+
+      int successCount = 0;
+      int failedCount = 0;
+      const int concurrency = 3;
+
+      for (int i = 0; i < toUpload.length; i += concurrency) {
+        if (!_loading) break;
+        final end = (i + concurrency < toUpload.length) ? i + concurrency : toUpload.length;
+        final chunk = toUpload.sublist(i, end);
+
+        final futures = chunk.map((f) async {
+          final name = f.path.split(Platform.pathSeparator).last;
+          try {
+            final bytes = await f.readAsBytes();
+            if (bytes.isNotEmpty) {
+              await _api.uploadImageBytes(bytes, name, asyncProcessing: true);
+              return true;
+            }
+          } catch (e) {
+            debugPrint('Error uploading $name: $e');
+          }
+          return false;
+        }).toList();
+
+        final results = await Future.wait(futures);
+        for (final res in results) {
+          if (res) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _batchCurrent = end;
+            _batchStatus = 'Uploading: $end/${toUpload.length} ($successCount sent, $alreadySynced skipped)...';
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _batchStatus = failedCount > 0
+              ? 'Finished syncing "$dirName": $successCount new documents indexed ($failedCount errors, $alreadySynced skipped)'
+              : 'Finished syncing "$dirName": $successCount new documents indexed! ($alreadySynced skipped)';
+        });
+        if (_hasSearched && _searchController.text.trim().isNotEmpty) {
+          _search();
+        }
+        if (successCount > 0) {
+          _startBackgroundSyncPoller(successCount, alreadySynced);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Storage directory sync error: $e';
+        });
+      }
+    }
+  }
+
   Future<void> _syncMobileFolderWithFilePicker() async {
+    if (mounted) {
+      final shouldProceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.tips_and_updates, color: Color(0xFFF59E0B)),
+              SizedBox(width: 10),
+              Text('How to Select All', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To select an entire folder of photos:',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+              ),
+              SizedBox(height: 10),
+              Text('1. Tap and HOLD any photo in the folder.', style: TextStyle(fontSize: 12.5)),
+              SizedBox(height: 4),
+              Text('2. Tap the 3 dots (⋮) in the top-right corner.', style: TextStyle(fontSize: 12.5)),
+              SizedBox(height: 4),
+              Text('3. Tap "Select All" ➔ Tap "Select" to sync everything!', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+              child: const Text('Open File Picker', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (shouldProceed != true) return;
+    }
+
     try {
       final result = await FilePicker.pickFiles(
         allowMultiple: true,
@@ -326,42 +505,112 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  // Primary Action Tile: Open File Manager for ANY folder
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF86EFAC)),
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF15803D),
-                          borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 12),
+                  // Action Cards for Full Hub & Storage Directory
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => Navigator.of(ctx).pop('sync_hub'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF93C5FD)),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.folder_shared_rounded, color: Color(0xFF2563EB), size: 24),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Folder Sync Hub',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1E40AF)),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Visual Album Browser',
+                                    style: TextStyle(fontSize: 10, color: Color(0xFF3B82F6)),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
-                        child: const Icon(Icons.drive_folder_upload, color: Colors.white, size: 24),
-                      ),
-                      title: const Text(
-                        'Open Phone File Manager',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF166534)),
-                      ),
-                      subtitle: const Text(
-                        'Navigate to ANY folder (WhatsApp, Downloads, etc.) ➔ tap "Select All"',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF15803D)),
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF15803D)),
-                      onTap: () => Navigator.of(ctx).pop('file_picker'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => Navigator.of(ctx).pop('storage_dir'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.drive_folder_upload, color: Color(0xFF16A34A), size: 24),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Storage Folder',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF166534)),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Internal Storage SAF',
+                                    style: TextStyle(fontSize: 10, color: Color(0xFF15803D)),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => Navigator.of(ctx).pop('file_picker'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.checklist_rtl_rounded, color: Color(0xFF475569), size: 24),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Multi-Files',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF334155)),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'With Select All tip',
+                                    style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                     child: Text(
-                      'OR CHOOSE A SPECIFIC PHONE ALBUM / FOLDER:',
+                      'OR CHOOSE A PHONE FOLDER BELOW (1-TAP SYNC ENTIRE FOLDER):',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5),
                     ),
                   ),
@@ -393,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
                               ),
                               subtitle: Text(
-                                '$count photos • Tap to sync ONLY this folder',
+                                '$count photos • Tap to sync WHOLE folder',
                                 style: const TextStyle(fontSize: 11.5, color: Color(0xFF2563EB), fontWeight: FontWeight.w500),
                               ),
                               trailing: Container(
@@ -403,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
-                                  'SYNC THIS',
+                                  'SYNC ALL',
                                   style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -422,6 +671,18 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (selectedAlbum == null || !mounted) return;
+
+      if (selectedAlbum == 'sync_hub') {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SyncFolderScreen()),
+        );
+        return;
+      }
+
+      if (selectedAlbum == 'storage_dir') {
+        await _syncDirectoryFromStorage();
+        return;
+      }
 
       if (selectedAlbum == 'file_picker') {
         await _syncMobileFolderWithFilePicker();
