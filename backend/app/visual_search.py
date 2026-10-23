@@ -58,6 +58,12 @@ class VisualSearchEngine:
         tensors = torch.stack([clip_transform(crop) for crop in crops]).to(self.device)
         with torch.no_grad():
             features = self.model.get_image_features(tensors)
+            if hasattr(features, "pooler_output") and getattr(features, "pooler_output") is not None:
+                features = features.pooler_output
+            elif hasattr(features, "last_hidden_state") and getattr(features, "last_hidden_state") is not None:
+                features = features.last_hidden_state[:, 0]
+            elif not isinstance(features, torch.Tensor):
+                features = features[0]
             features = features / features.norm(p=2, dim=-1, keepdim=True)
         return features.cpu().numpy().astype(np.float32)
 
@@ -75,6 +81,12 @@ class VisualSearchEngine:
         text_inputs = self.tokenizer(prompts, padding=True, return_tensors="pt").to(self.device)
         with torch.no_grad():
             text_features = self.model.get_text_features(**text_inputs)
+            if hasattr(text_features, "pooler_output") and getattr(text_features, "pooler_output") is not None:
+                text_features = text_features.pooler_output
+            elif hasattr(text_features, "last_hidden_state") and getattr(text_features, "last_hidden_state") is not None:
+                text_features = text_features.last_hidden_state[:, 0]
+            elif not isinstance(text_features, torch.Tensor):
+                text_features = text_features[0]
             text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
             # Average prompts and re-normalize
             ensemble_vec = text_features.mean(dim=0, keepdim=True)
@@ -119,7 +131,8 @@ class VisualSearchEngine:
         self,
         query: str,
         top_k: int = 10,
-        threshold: float = 0.245,
+        threshold: float = 0.210,
+        user_id: int | None = None,
         use_refinement: bool = True,
         bypass_cache: bool = False,
     ) -> List[Dict[str, Any]]:
@@ -131,9 +144,9 @@ class VisualSearchEngine:
         if use_refinement:
             from app.visual_refinement import get_visual_refiner
             refiner = get_visual_refiner(self)
-            return refiner.search(query=query, top_k=top_k, threshold=threshold, bypass_cache=bypass_cache)
+            return refiner.search(query=query, top_k=top_k, threshold=threshold, user_id=user_id, bypass_cache=bypass_cache)
 
-        all_regions = database.get_all_visual_regions()
+        all_regions = database.get_all_visual_regions(user_id=user_id)
         if not all_regions:
             return []
 

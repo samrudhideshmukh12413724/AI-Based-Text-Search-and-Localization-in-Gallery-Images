@@ -1293,10 +1293,13 @@ def search_images(
         "stamp", "seal", "signature", "sign", "qr", "qrcode", "barcode", "logo",
         "photo", "picture", "image", "portrait", "face", "car", "cat", "dog",
         "diagram", "chart", "graph", "map", "table", "icon", "drawing", "badge",
-        "passport", "steganography"
+        "passport", "steganography", "group", "festival", "navratri", "traditional",
+        "dress", "people", "person", "celebration", "gathering", "dance", "culture",
+        "event", "outfit", "attire", "costume", "sari", "kurta", "party", "wedding",
+        "selfie", "pose", "friends", "family", "men", "women", "boy", "girl", "crowd"
     }
     is_visual_target_query = any(vk in clean_q_raw for vk in VISUAL_TARGET_KEYWORDS)
-    v_thresh = 0.380 if (is_numeric_query or not is_visual_target_query) else 0.335
+    v_thresh = 0.190 if (is_visual_target_query) else 0.205
 
     def _task_keyword():
         try:
@@ -1315,7 +1318,7 @@ def search_images(
     def _task_visual():
         try:
             v_engine = get_visual_search_engine()
-            return v_engine.search(body.query, top_k=25, threshold=v_thresh)
+            return v_engine.search(body.query, top_k=30, threshold=v_thresh, user_id=scoped_user_id)
         except Exception as e:
             print(f"[Search Engine] Visual search warning: {e}")
             return []
@@ -1397,10 +1400,12 @@ def search_images(
         }
 
     def _norm_vis_score(raw_v: float) -> float:
-        """Normalizes raw CLIP cosine similarity without artificially inflating weak scores."""
-        if raw_v < 0.34:
-            return round(raw_v, 3)
-        return round(min(0.95, 0.45 + 0.50 * (raw_v - 0.34) / 0.16), 3)
+        """Normalizes raw CLIP cosine similarity into calibrated [0.0, 1.0] confidence score."""
+        if raw_v <= 0.18:
+            return round(max(0.1, raw_v), 3)
+        # Linear calibration from [0.18, 0.32] to [0.45, 0.95]
+        calibrated = 0.45 + (raw_v - 0.18) * (0.50 / 0.14)
+        return round(min(0.98, max(0.40, calibrated)), 3)
 
     # Pre-rank candidate doc IDs by rough score to process only top 35
     def _candidate_score(cid: int) -> float:
@@ -1546,11 +1551,10 @@ def search_images(
         # Case C: Visual-Only Match
         else:
             v_raw = visual_candidates[img_id]["score"]
-            if is_numeric_query and v_raw < 0.380:
+            if is_numeric_query and v_raw < 0.280:
                 continue
-            if not is_visual_target_query and v_raw < 0.460:
-                continue
-            if v_raw < 0.335:
+            min_cutoff = 0.190 if is_visual_target_query else 0.205
+            if v_raw < min_cutoff:
                 continue
             v_norm = round(_norm_vis_score(v_raw), 3)
             best_reg = visual_candidates[img_id]["best_region"]

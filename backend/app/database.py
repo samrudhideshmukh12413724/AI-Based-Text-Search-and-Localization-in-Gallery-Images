@@ -737,7 +737,10 @@ def get_or_create_guest_user(guest_session_id: str) -> dict:
     guest_username = f"guest_{sess_hash}"
 
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM users WHERE username = ?", (guest_username,)).fetchone()
+        # Check direct session ID first (e.g. guest_xxx created during upload) then hashed session
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (clean_id,)).fetchone()
+        if not row:
+            row = conn.execute("SELECT * FROM users WHERE username = ?", (guest_username,)).fetchone()
         if row:
             return {
                 "id": row["id"],

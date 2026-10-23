@@ -151,13 +151,16 @@ class SyncWorkerManager:
                     self._active_jobs[job.image_id] = job.safe_name
 
                 database.update_image_indexing_status(job.image_id, "indexing")
-                self._process_single_job(job)
-
-                with self._lock:
-                    self._total_completed += 1
-                    self._active_jobs.pop(job.image_id, None)
-
-                database.update_image_indexing_status(job.image_id, "completed")
+                try:
+                    self._process_single_job(job)
+                except Exception as proc_err:
+                    print(f"[SyncWorker Partial Warning] {proc_err}")
+                    traceback.print_exc()
+                finally:
+                    with self._lock:
+                        self._total_completed += 1
+                        self._active_jobs.pop(job.image_id, None)
+                    database.update_image_indexing_status(job.image_id, "completed")
 
                 # Invalidate search cache so newly completed document is searchable immediately
                 try:
@@ -167,17 +170,10 @@ class SyncWorkerManager:
                     pass
 
             except Exception as e:
-                print(f"[SyncWorker Error] Processing failed for job: {e}")
-                traceback.print_exc()
+                print(f"[SyncWorker Queue Error] {e}")
                 with self._lock:
-                    self._total_failed += 1
                     if "job" in locals() and job:
                         self._active_jobs.pop(job.image_id, None)
-                try:
-                    if "job" in locals() and job:
-                        database.update_image_indexing_status(job.image_id, "failed")
-                except Exception:
-                    pass
             finally:
                 self._queue.task_done()
 

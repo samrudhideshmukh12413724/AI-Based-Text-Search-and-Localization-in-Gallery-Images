@@ -16,18 +16,20 @@ _blip_initialized = False
 
 
 def _init_blip():
-    """Lazy loader for BLIP Image Captioning model."""
+    """Lazy loader for BLIP Image Captioning model (strictly local files only to prevent blocking downloads)."""
     global _blip_processor, _blip_model, _blip_initialized
     if _blip_initialized:
         return
     _blip_initialized = True
     try:
         from transformers import BlipProcessor, BlipForConditionalGeneration
-        _blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-        _blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+        _blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", local_files_only=True)
+        _blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base", local_files_only=True)
         _blip_model.eval()
     except Exception as e:
-        print(f"[Captioning] Note: BLIP model lazy-init deferred or operating in fallback mode: {e}")
+        # Lightweight mode active
+        _blip_processor = None
+        _blip_model = None
 
 
 def generate_caption(image_input: Union[str, Path, Image.Image]) -> str:

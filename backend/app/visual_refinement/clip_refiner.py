@@ -90,6 +90,12 @@ class VisualRefiner:
         # 4. Single model forward pass
         with torch.no_grad():
             text_features = self.model.get_text_features(**text_inputs)
+            if hasattr(text_features, "pooler_output") and getattr(text_features, "pooler_output") is not None:
+                text_features = text_features.pooler_output
+            elif hasattr(text_features, "last_hidden_state") and getattr(text_features, "last_hidden_state") is not None:
+                text_features = text_features.last_hidden_state[:, 0]
+            elif not isinstance(text_features, torch.Tensor):
+                text_features = text_features[0]
             # Step 4: Normalize every prompt embedding independently
             text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
             # Step 5: Average normalized embeddings deterministically
@@ -164,12 +170,13 @@ class VisualRefiner:
         query: str,
         top_k: int = 10,
         threshold: float = DEFAULT_VISUAL_THRESHOLD,
+        user_id: Optional[int] = None,
         bypass_cache: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Executes modular, open-vocabulary refined visual search across all indexed regions.
         """
-        all_regions = database.get_all_visual_regions()
+        all_regions = database.get_all_visual_regions(user_id=user_id)
         if not all_regions:
             return []
 
