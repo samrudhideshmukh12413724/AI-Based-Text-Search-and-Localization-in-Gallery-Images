@@ -55,7 +55,6 @@ scratch/
 *.db-shm
 *.db-wal
 *.bak*
-phase5_backup/
 
 # SQLite Databases & Pickled Model Embeddings (CRITICAL FOR PRIVACY)
 *.db
