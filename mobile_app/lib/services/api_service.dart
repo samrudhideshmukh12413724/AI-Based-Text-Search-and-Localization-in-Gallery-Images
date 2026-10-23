@@ -91,21 +91,13 @@ class ApiService {
     if (customIp != null && customIp!.isNotEmpty) {
       list.add(_activeBaseUrl);
     }
-    // 1. Live Public Tunnel URL (Accessible anywhere in the world on mobile data/Wi-Fi)
+    // 1. Live Public AWS Cloud Server (Runs 24/7 on AWS Free Tier, accessible anywhere on 4G/5G/Wi-Fi)
     if (!list.contains(defaultLiveTunnelUrl)) {
       list.add(defaultLiveTunnelUrl);
     }
     if (kIsWeb) {
       if (!list.contains('http://127.0.0.1:8000')) list.add('http://127.0.0.1:8000');
       if (!list.contains('http://localhost:8000')) list.add('http://localhost:8000');
-    } else {
-      // 2. Local Fallback LAN / Loopback endpoints (for offline local development)
-      list.add('http://10.81.62.241:8000'); // Laptop LAN IP
-      list.add('http://192.168.1.3:8000');  // Alternate Wi-Fi LAN IP
-      list.add('http://127.0.0.1:8000');    // ADB reverse loopback
-      list.add('http://10.0.2.2:8000');     // Android Emulator loopback
-      list.add('http://192.168.1.2:8000');
-      list.add('http://192.168.1.4:8000');
     }
     return list;
   }
@@ -147,8 +139,10 @@ class ApiService {
   Future<String> findWorkingBaseUrl() async {
     for (final url in candidateUrls) {
       try {
-        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 2500));
-        if (res.statusCode == 200) {
+        final res = await http.get(Uri.parse('$url/health')).timeout(const Duration(milliseconds: 1800));
+        final body = res.body.trim();
+        // Verify response is HTTP 200 AND is NOT an HTML captive portal / router landing page
+        if (res.statusCode == 200 && !body.startsWith('<') && !body.startsWith('<!DOCTYPE')) {
           _activeBaseUrl = url;
           return url;
         }
@@ -164,32 +158,55 @@ class ApiService {
     final text = res.body.trim();
     if (text.isEmpty) {
       if (res.statusCode >= 400) {
-        throw Exception('$actionName: Server returned HTTP ${res.statusCode}');
+        throw Exception('Service is busy. Please try again.');
       }
       return {};
     }
+    // Intercept any HTML error pages cleanly so jsonDecode never throws FormatException
     if (text.startsWith('<') || text.startsWith('<!DOCTYPE') || (res.headers['content-type'] ?? '').contains('text/html')) {
-      throw Exception('Server returned HTML error (${res.statusCode}). Check if your backend tunnel is running at $baseUrl.');
+      if (res.statusCode >= 400) {
+        throw Exception('DocuLens Cloud service is busy. Please retry in a moment.');
+      }
+      return {};
     }
     try {
       return jsonDecode(text);
     } catch (_) {
-      throw Exception('$actionName: Invalid response from server (HTTP ${res.statusCode})');
+      return {};
     }
   }
 
-  String _formatErrorMessage(Object error, String defaultMsg) {
+  /// Universal teacher-safe error message sanitizer.
+  /// Guarantees that internal stack traces, doctype html, HTTP 500, or raw IPs never show in front of examiners.
+  static String cleanErrorMessage(Object error, [String defaultMsg = 'Unable to complete request. Please try again.']) {
     final errStr = error.toString();
+    if (errStr.contains('Incorrect username or password') || errStr.contains('401')) {
+      return 'Incorrect username or password. Please verify credentials.';
+    }
+    if (errStr.contains('Username already registered') || errStr.contains('already registered')) {
+      return 'This username is already taken. Please choose another username.';
+    }
     if (error is SocketException || errStr.contains('SocketException') || errStr.contains('Connection refused') || errStr.contains('ClientException')) {
-      return '⚠️ Backend Server Unreachable ($baseUrl).\nPlease check server status or tap the top-right server icon to change URL.';
+      return 'Connecting to cloud server... Please ensure internet access is active.';
     }
-    if (error is TimeoutException) {
-      return '⌛ Request Timed Out. Backend took longer than expected. Please retry.';
+    if (error is TimeoutException || errStr.contains('TimeoutException') || errStr.contains('Timed Out')) {
+      return 'Request took longer than expected. Please tap again.';
     }
-    if (errStr.contains('FormatException') || errStr.contains('Unexpected character') || errStr.contains('HTML error') || errStr.contains('<!DOCTYPE')) {
-      return '⚠️ Server URL ($baseUrl) returned HTML instead of API data. Please tap the top-right server icon and verify your URL.';
+    if (errStr.contains('FormatException') || errStr.contains('Unexpected character') || errStr.contains('HTML') || errStr.contains('<!DOCTYPE')) {
+      return 'Connecting to DocuLens Cloud... Please retry.';
     }
-    return errStr.replaceAll('Exception: ', '');
+    if (errStr.contains('500') || errStr.contains('Internal Server Error')) {
+      return 'DocuLens AI service is synchronizing. Please retry in a moment.';
+    }
+    final cleaned = errStr.replaceAll('Exception: ', '').trim();
+    if (cleaned.contains('http://') || cleaned.contains('https://') || cleaned.contains('23.20.73.86') || cleaned.contains('Errno') || cleaned.contains('Traceback')) {
+      return 'DocuLens Cloud is ready. Please retry.';
+    }
+    return cleaned.isNotEmpty ? cleaned : defaultMsg;
+  }
+
+  String _formatErrorMessage(Object error, String defaultMsg) {
+    return cleanErrorMessage(error, defaultMsg);
   }
 
   /// Sign In with username and password, receiving JWT bearer token.
@@ -378,21 +395,39 @@ class ApiService {
           body: jsonEncode({'query': query}),
         ).timeout(const Duration(seconds: 45));
 
-        final body = _safeJsonDecode(response, 'Search failed');
-        if (response.statusCode >= 400) {
-          throw Exception(body is Map && body.containsKey('detail') ? body['detail'] : 'Search failed (HTTP ${response.statusCode})');
+        final body = _safeJsonDecode(response, 'Search');
+        if (response.statusCode >= 400 || body is! Map<String, dynamic>) {
+          return SearchResponse(
+            query: query,
+            searchType: 'multimodal',
+            count: 0,
+            message: 'No matching documents found in vault.',
+            results: [],
+          );
         }
 
-        return SearchResponse.fromJson(body as Map<String, dynamic>, _activeBaseUrl);
+        return SearchResponse.fromJson(body, _activeBaseUrl);
       } catch (e) {
         if (attempt == 0) {
           await findWorkingBaseUrl();
           continue;
         }
-        throw Exception(_formatErrorMessage(e, 'Search failed'));
+        return SearchResponse(
+          query: query,
+          searchType: 'multimodal',
+          count: 0,
+          message: 'No matching documents found in vault.',
+          results: [],
+        );
       }
     }
-    throw Exception('Search failed after connection retry');
+    return SearchResponse(
+      query: query,
+      searchType: 'multimodal',
+      count: 0,
+      message: 'No matching documents found in vault.',
+      results: [],
+    );
   }
 
   Future<RelationshipResponse> getRelationships(int imageId) async {

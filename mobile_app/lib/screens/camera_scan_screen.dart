@@ -67,7 +67,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Scan failed: $e'),
+            content: Text(ApiService.cleanErrorMessage(e, 'Document scan could not be completed. Please retry.')),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -121,7 +121,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed: $e'),
+            content: Text(ApiService.cleanErrorMessage(e, 'Image import could not be completed. Please retry.')),
             backgroundColor: AppTheme.error,
           ),
         );

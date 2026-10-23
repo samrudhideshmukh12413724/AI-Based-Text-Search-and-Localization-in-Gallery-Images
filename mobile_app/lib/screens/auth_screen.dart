@@ -55,21 +55,8 @@ class _AuthScreenState extends State<AuthScreen> {
         _navigateToMainShell();
       }
     } catch (e) {
-      // Auto-probe candidate URLs in case the network IP changed
-      try {
-        await _api.findWorkingBaseUrl();
-        if (_isRegisterMode) {
-          await _api.register(username, password);
-        }
-        await _api.login(username, password);
-        if (mounted) {
-          _navigateToMainShell();
-          return;
-        }
-      } catch (_) {}
-
       if (mounted) {
-        String err = e.toString().replaceAll('Exception: ', '');
+        String err = ApiService.cleanErrorMessage(e);
         if (err.contains('Incorrect username or password')) {
           err = 'Incorrect username or password.\n💡 New user? Tap "Create Account" below to register this username!';
         }

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/search_result.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'sync_folder_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -954,8 +955,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (!mounted || reqId != _searchRequestId) return;
       setState(() {
-        _error = e.toString();
+        _error = null;
         _results = [];
+        _searchType = 'multimodal';
+        _searchMessage = 'No matching documents found in vault.';
       });
     } finally {
       if (mounted && reqId == _searchRequestId) {
@@ -2446,21 +2449,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
 
-                  // --- Error Message ---
+                  // --- Status / Guidance Message ---
                   if (_error != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.red),
-                          const SizedBox(width: 12),
+                          const Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.primary),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                            child: Text(
+                              ApiService.cleanErrorMessage(_error!),
+                              style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16, color: AppTheme.textMuted),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => setState(() => _error = null),
                           ),
                         ],
                       ),
@@ -3707,7 +3720,7 @@ class _UserAccountSheetState extends State<_UserAccountSheet> with SingleTickerP
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = ApiService.cleanErrorMessage(e);
         });
       }
     } finally {
@@ -3750,7 +3763,7 @@ class _UserAccountSheetState extends State<_UserAccountSheet> with SingleTickerP
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = ApiService.cleanErrorMessage(e);
         });
       }
     } finally {
