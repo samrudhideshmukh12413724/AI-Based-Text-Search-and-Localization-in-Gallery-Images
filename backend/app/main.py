@@ -16,7 +16,7 @@ import json
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks, Response, Request, Depends
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -2233,6 +2233,596 @@ def download_landing_page():
     </body>
     </html>
     """
+
+
+
+# =============================================================================
+# RESEARCH PAPER INNOVATIONS & EXTENSIONS (Papers 1, 8, 9, 10, 11, 12, 13)
+# =============================================================================
+class QARequest(BaseModel):
+    question: str
+
+
+@app.api_route("/qa", methods=["GET", "POST"])
+def ask_doculens_qa_endpoint(
+    request: Request,
+    body: Optional[QARequest] = None,
+    q: Optional[str] = None,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 8 & 10 Grounded Document Q&A Endpoint (Ask DocuLens).
+    Extracts answers and evidence sentences anchored to verified OCR bounding boxes.
+    """
+    from app.qa_engine import ask_doculens_qa
+
+    question_text = ""
+    if body and body.question:
+        question_text = body.question
+    elif q:
+        question_text = q
+    elif request.query_params.get("question"):
+        question_text = request.query_params.get("question", "")
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    res = ask_doculens_qa(question=question_text, user_id=scoped_user_id)
+    return res
+
+
+@app.get("/documents/clusters")
+def get_document_clusters_endpoint(
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 11 & 6 Semantic Document Clustering & Auto-Topic Taxonomy.
+    Groups gallery documents into intelligent categories with TF-IDF keyword tags.
+    """
+    from app.clustering import cluster_user_documents
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    return cluster_user_documents(user_id=scoped_user_id)
+
+
+class ResearchAlgorithmTestRequest(BaseModel):
+    query: str
+    target_text: str
+    filter_score: float = 1.0
+    attention_confidence: float = 0.90
+
+
+@app.post("/search/research-algorithms")
+def test_research_algorithms_endpoint(
+    body: ResearchAlgorithmTestRequest,
+):
+    """
+    Quantitative Test Endpoint for Research Paper Algorithms:
+    - Paper 1: BPE Subword Tokenization & Inclusive-OR Aggregation
+    - Paper 9: Cross-Weighted Product Relevance Scoring
+    - Paper 12: Boyer-Moore-Horspool Fast Right-to-Left String Matcher
+    - Paper 13: Bounded Dice Short-Text Similarity
+    """
+    from app.search.research_algorithms import (
+        BoyerMooreHorspoolMatcher,
+        compute_dice_similarity,
+        bpe_subword_tokenize,
+        bpe_inclusive_or_score,
+        compute_cross_weighted_product_score,
+    )
+
+    bmh = BoyerMooreHorspoolMatcher(body.query)
+    bmh_occurrences = bmh.search_in(body.target_text)
+    bmh_score = bmh.match_score(body.target_text)
+
+    # Token-level Dice
+    doc_words = re.findall(r"\w+", body.target_text.lower())
+    q_words = re.findall(r"\w+", body.query.lower())
+    best_dice = 0.0
+    for qw in q_words:
+        for dw in doc_words:
+            d = compute_dice_similarity(qw, dw)
+            if d > best_dice:
+                best_dice = d
+
+    # Paper 1 BPE Subword score
+    bpe_tokens = bpe_subword_tokenize(body.query)
+    bpe_score, matched_subs = bpe_inclusive_or_score(body.query, doc_words)
+
+    # Paper 9 Cross-Weighted Product score
+    text_sim = max(bmh_score, best_dice, bpe_score)
+    cwp_score = compute_cross_weighted_product_score(
+        text_similarity=text_sim,
+        filter_score=body.filter_score,
+        attention_confidence=body.attention_confidence,
+    )
+
+    return {
+        "query": body.query,
+        "bmh_paper12": {
+            "match_found": bool(bmh_occurrences),
+            "match_score": bmh_score,
+            "character_offsets": bmh_occurrences,
+            "shift_table": bmh.shift_table,
+        },
+        "dice_paper13": {
+            "best_dice_similarity": best_dice,
+            "bounded_fuzzy_accepted": bool(best_dice >= 0.70),
+        },
+        "bpe_paper1": {
+            "subword_tokens": bpe_tokens,
+            "matched_subwords": matched_subs,
+            "inclusive_or_support_score": bpe_score,
+        },
+        "cross_weighted_paper9": {
+            "formula": "Score = (S_text)^0.50 * (S_filter)^0.25 * (S_attention)^0.25",
+            "cross_weighted_product_score": cwp_score,
+        },
+    }
+
+
+# =============================================================================
+# PAPERS 4 & 5: TEXT-BASED PERSON SEARCH & PERSON RE-IDENTIFICATION
+# =============================================================================
+class PersonSearchRequest(BaseModel):
+    query: str
+    min_score: float = 0.35
+
+
+@app.post("/search/person")
+def search_person_endpoint(
+    body: PersonSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 4 Text-Based Person Search:
+    Locates people in photos based on appearance description (e.g. 'person in red shirt', 'girl with glasses').
+    """
+    from app.person_search import get_person_search_engine
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    engine = get_person_search_engine()
+    return engine.search_person_by_description(
+        query=body.query,
+        user_id=scoped_user_id,
+        min_score=body.min_score,
+    )
+
+
+class PersonReidRequest(BaseModel):
+    source_image_id: int
+    min_similarity: float = 0.65
+
+
+@app.post("/person/re-identify")
+def person_reidentify_endpoint(
+    body: PersonReidRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 5 Person Re-Identification:
+    Finds all other photos containing the same person across the gallery.
+    """
+    from app.person_search import get_person_search_engine
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    engine = get_person_search_engine()
+    return engine.reidentify_person(
+        source_image_id=body.source_image_id,
+        user_id=scoped_user_id,
+        min_similarity=body.min_similarity,
+    )
+
+
+# =============================================================================
+# PAPERS 7 & 8: DOCUMENT SUMMARIZATION & SENTIMENT / TONE POLARITY
+# =============================================================================
+@app.get("/documents/{image_id}/summary")
+def get_document_summary_endpoint(
+    image_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 7 & 8 Extractive Document Summarization:
+    Generates structured executive summary, key highlights, and tone analysis.
+    """
+    from app.summarizer import generate_document_summary
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    row = database.get_image_by_id(image_id, user_id=scoped_user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    text = row.get("extracted_text") or ""
+    summary = generate_document_summary(text)
+    summary["document_id"] = image_id
+    summary["document_name"] = row["image_name"]
+    return summary
+
+
+# =============================================================================
+# PAPER 14: SPATIAL-TEMPORAL GEO SEARCH
+# =============================================================================
+class GeoSearchRequest(BaseModel):
+    city: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    radius_km: float = 35.0
+
+
+@app.post("/search/geo")
+def geo_search_endpoint(
+    body: GeoSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 14 Geo-Localization & GPS Radius Search:
+    Retrieves gallery photos and documents by city or GPS radius.
+    """
+    from app.geo_search import search_by_geographic_location
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    return search_by_geographic_location(
+        target_city=body.city,
+        target_lat=body.latitude,
+        target_lon=body.longitude,
+        radius_km=body.radius_km,
+        user_id=scoped_user_id,
+    )
+
+
+# =============================================================================
+# PAPER 11: NATURAL LANGUAGE INSTRUCTION INTENT PARSER
+# =============================================================================
+class InstructionSearchRequest(BaseModel):
+    instruction: str
+
+
+@app.post("/search/instruction")
+def instruction_search_endpoint(
+    body: InstructionSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 11 (IEEE EIECS 2023) Natural Language Instruction Query Parser & Cluster-Guided Search:
+    Converts human commands (e.g. 'bills above 1000 rupees in 2026') into structured parameters,
+    prunes search space via semantic clustering, and retrieves ranked documents.
+    """
+    from app.instruction_parser import execute_instruction_search
+    from app.clustering import find_matching_cluster_for_instruction
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+
+    execution_result = execute_instruction_search(
+        instruction=body.instruction,
+        user_id=scoped_user_id,
+    )
+    cluster_guidance = find_matching_cluster_for_instruction(
+        instruction=body.instruction,
+        user_id=scoped_user_id,
+    )
+
+    return {
+        **execution_result,
+        "cluster_guidance": cluster_guidance,
+        "research_backing": (
+            "Paper 11: Automatic Search Method for Unstructured Database of Natural Language Instructions "
+            "(Shi, Chen, Tang, Zhang, Chen; IEEE EIECS 2023)"
+        ),
+    }
+
+
+# =============================================================================
+# IEEE ICISAA 2024 (PUNE): SEMANTIC SEARCH OF EDUCATIONAL TEXTS (SIT PUNE)
+# =============================================================================
+class EducationalSearchRequest(BaseModel):
+    document_id: Optional[int] = None
+    text: Optional[str] = None
+    question: str
+
+
+@app.post("/educational/semantic-search")
+def educational_semantic_search_endpoint(
+    body: EducationalSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    IEEE ICISAA 2024 (Pune, India) Paper Implementation:
+    'Semantic Search of Educational Texts' (SIT Pune / Symbiosis International Univ.)
+    Executes dual comparative evaluation:
+    - Model 1: TF-IDF Sentence Scorer (Figures 3, 4, 10)
+    - Model 2: Dense Semantic Vector Search + Top-5 Answers + Summary-of-Summary (Figures 11, 12)
+    """
+    from app.educational_semantic_search import run_educational_semantic_study
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    target_text = body.text or ""
+    ocr_boxes = None
+
+    if body.document_id:
+        row = database.get_image_by_id(body.document_id, user_id=scoped_user_id)
+        if row:
+            target_text = target_text or row.get("cleaned_text") or row.get("extracted_text") or ""
+            raw_boxes = row.get("ocr_boxes")
+            if isinstance(raw_boxes, str):
+                try:
+                    ocr_boxes = json.loads(raw_boxes)
+                except Exception:
+                    pass
+            elif isinstance(raw_boxes, list):
+                ocr_boxes = raw_boxes
+
+    if not target_text:
+        # Default fallback to all indexed documents text for the user
+        all_imgs = database.list_images(user_id=scoped_user_id)
+        target_text = "\n\n".join([img.get("extracted_text", "") for img in all_imgs[:10] if img.get("extracted_text")])
+
+    if not target_text.strip():
+        raise HTTPException(status_code=400, detail="No document text available for educational search.")
+
+    return run_educational_semantic_study(text=target_text, question=body.question, ocr_boxes=ocr_boxes)
+
+
+# =============================================================================
+# PAPER 7: SEARCH DESK MULTI-FORMAT SNIFFER, NAIVE BAYES & SUMMARIZER
+# =============================================================================
+class SearchDeskAnalysisRequest(BaseModel):
+    document_id: Optional[int] = None
+    text: Optional[str] = None
+    search_query: Optional[str] = None
+
+
+@app.post("/documents/search-desk-analysis")
+def search_desk_analysis_endpoint(
+    body: SearchDeskAnalysisRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 7 (IEEE ICCCNT 2023) Search Desk Architecture:
+    Executes deep multi-format sniffer, Naive Bayes classification with Laplace smoothing,
+    zero-duplication highlighting overlay, and extractive document summarization.
+    """
+    from app.summarizer import (
+        generate_document_summary,
+        generate_zero_duplication_highlights,
+        identify_file_format_and_mime,
+    )
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    target_text = body.text or ""
+    ocr_boxes = []
+    file_bytes = None
+    filename = ""
+
+    if body.document_id:
+        row = database.get_image_by_id(body.document_id, user_id=scoped_user_id)
+        if row:
+            target_text = target_text or row.get("cleaned_text") or row.get("extracted_text") or ""
+            filename = row.get("image_name") or ""
+            raw_boxes = row.get("ocr_boxes")
+            if isinstance(raw_boxes, str):
+                try:
+                    ocr_boxes = json.loads(raw_boxes)
+                except Exception:
+                    pass
+            elif isinstance(raw_boxes, list):
+                ocr_boxes = raw_boxes
+
+    if not target_text.strip():
+        raise HTTPException(status_code=400, detail="No document text provided or found for analysis.")
+
+    summary_result = generate_document_summary(
+        text=target_text,
+        file_bytes=file_bytes,
+        filename=filename,
+    )
+
+    highlights_result = None
+    if body.search_query:
+        highlights_result = generate_zero_duplication_highlights(
+            text=target_text,
+            search_query=body.search_query,
+            ocr_boxes=ocr_boxes,
+        )
+
+    return {
+        "status": "success",
+        "document_summary": summary_result,
+        "zero_duplication_highlights": highlights_result,
+        "research_backing": "Paper 7 (Search Desk: Multi-Format Sniffer, Naive Bayes & Extractive Summarizer)",
+    }
+
+
+# =============================================================================
+# PAPER 10: EXPERT SYSTEM & FULL-TEXT SEARCH PROBLEM SOLVER (ICENCO 2019)
+# =============================================================================
+class ExpertDiagnosisRequest(BaseModel):
+    document_id: Optional[int] = None
+    text: Optional[str] = None
+    problem_query: Optional[str] = None
+
+
+@app.post("/expert/diagnose")
+def expert_diagnosis_endpoint(
+    body: ExpertDiagnosisRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 10 (IEEE ICENCO 2019) Expert System & Full-Text Search Integration:
+    Combines unstructured text search with forward-chaining production rules,
+    certainty factor propagation, zero-hallucination visual proof, and 1-tap mobile action chips.
+    """
+    from app.expert_system import solve_document_problem
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    target_text = body.text or ""
+    ocr_boxes = []
+
+    if body.document_id:
+        row = database.get_image_by_id(body.document_id, user_id=scoped_user_id)
+        if row:
+            target_text = target_text or row.get("cleaned_text") or row.get("extracted_text") or ""
+            raw_boxes = row.get("ocr_boxes")
+            if isinstance(raw_boxes, str):
+                try:
+                    ocr_boxes = json.loads(raw_boxes)
+                except Exception:
+                    pass
+            elif isinstance(raw_boxes, list):
+                ocr_boxes = raw_boxes
+
+    if not target_text.strip():
+        # Fallback to recent tenant images if none specified
+        all_imgs = database.list_images(user_id=scoped_user_id)
+        if all_imgs:
+            target_text = all_imgs[0].get("extracted_text", "")
+            raw_boxes = all_imgs[0].get("ocr_boxes")
+            if isinstance(raw_boxes, list):
+                ocr_boxes = raw_boxes
+
+    if not target_text.strip():
+        raise HTTPException(status_code=400, detail="No document text available for expert diagnosis.")
+
+    return solve_document_problem(
+        text=target_text,
+        ocr_boxes=ocr_boxes,
+        problem_query=body.problem_query,
+    )
+
+
+class InstructionSearchRequest(BaseModel):
+    instruction: str
+    max_results: int = 10
+
+
+@app.post("/search/instruction")
+def instruction_search_endpoint(
+    body: InstructionSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Tier 1 / Paper 11: Natural Language Instruction Search with Constraint-Aware Negation Filtering.
+    Resolves Multimodal Negation Blindness, performs positive/negative decomposition,
+    and returns ranked documents with Constraint Satisfaction Rates (CSR).
+    """
+    from app.instruction_parser import execute_instruction_search
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    return execute_instruction_search(
+        instruction=body.instruction,
+        user_id=scoped_user_id,
+        max_results=body.max_results,
+    )
+
+
+class ChangeAwareSearchRequest(BaseModel):
+    query: str
+
+
+@app.post("/search/change-aware")
+def change_aware_search_endpoint(
+    body: ChangeAwareSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Tier 2: Change-Aware Semantic Retrieval for Tracking Events and Visual Changes.
+    Groups project/document timelines, detects visual and operational deltas,
+    and returns before-and-after pairs with visual change attribution.
+    """
+    from app.change_aware import ChangeAwareRetriever
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    return ChangeAwareRetriever.search_change_across_gallery(
+        query=body.query,
+        user_id=scoped_user_id,
+    )
+
+
+class RelevanceFeedbackRequest(BaseModel):
+    query: str
+    relevant_ids: List[int] = []
+    irrelevant_ids: List[int] = []
+
+
+@app.post("/search/feedback")
+def record_relevance_feedback_endpoint(
+    body: RelevanceFeedbackRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Tier 3: Relevance Feedback & Adaptive Personalization (Rocchio Learning).
+    Updates user-specific positive/negative feature preferences and tunes Paper 9 fusion weights.
+    """
+    from app.relevance_feedback import RelevanceFeedbackEngine
+
+    user_id = current_user.get("id", 1)
+    return RelevanceFeedbackEngine.record_feedback(
+        user_id=user_id,
+        query=body.query,
+        relevant_doc_ids=body.relevant_ids,
+        irrelevant_doc_ids=body.irrelevant_ids,
+    )
+
+
+@app.get("/search/personalized-profile")
+def get_personalized_profile_endpoint(
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Retrieves the learned personalized ranking profile and adaptive weights for the current user.
+    """
+    from app.relevance_feedback import RelevanceFeedbackEngine
+
+    user_id = current_user.get("id", 1)
+    return RelevanceFeedbackEngine.get_user_profile(user_id=user_id)
+
+
+@app.post("/search/personalized-profile/reset")
+def reset_personalized_profile_endpoint(
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Resets the personalized ranking profile for the current user.
+    """
+    from app.relevance_feedback import RelevanceFeedbackEngine
+
+    user_id = current_user.get("id", 1)
+    RelevanceFeedbackEngine.reset_profile(user_id=user_id)
+    return {"status": "success", "message": "Personalized feedback profile reset successfully."}
+
+
+@app.get("/documents/{doc_id}/graph-code")
+def get_document_graph_code_endpoint(
+    doc_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Paper 17 (Information 2021 / GMAF): On-Device Multimedia Feature Vector Graph (MMFVG) & Graph Code Matrix.
+    Extracts visual objects, recognized entities, and OCR tokens from the document,
+    generating a compact 2D adjacency Graph Code matrix executing on edge mobile CPU.
+    """
+    from app.knowledge_graph import generate_mobile_graph_code
+
+    scoped_user_id = None if current_user.get("is_admin", False) else current_user.get("id")
+    img = database.get_image_by_id(doc_id, user_id=scoped_user_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    vmeta_raw = img.get("visual_metadata")
+    vmeta = {}
+    if vmeta_raw:
+        try:
+            vmeta = json.loads(vmeta_raw) if isinstance(vmeta_raw, str) else vmeta_raw
+        except Exception:
+            pass
+
+    objects = [str(o) for o in vmeta.get("objects", [])]
+    ocr_tokens = (img.get("extracted_text") or "").split()[:10]
+    entities = [img.get("category", "General")]
+
+    return generate_mobile_graph_code(
+        entities=entities,
+        visual_objects=objects,
+        ocr_tokens=ocr_tokens,
+    )
 
 
 

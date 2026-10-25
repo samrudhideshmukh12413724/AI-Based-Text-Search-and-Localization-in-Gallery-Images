@@ -105,7 +105,7 @@ def compute_exact_score(query: str, text: str, filename: str) -> float:
             word_scores.append(1.0)
             continue
 
-        # Substring / Devanagari / Prefix matching only when exact not matched
+        # Substring / Devanagari / Paper 2 Normalized Levenshtein OCR matching
         best = 0.0
         for dw in doc_words:
             if qw.isdigit() and dw.isdigit():
@@ -118,22 +118,30 @@ def compute_exact_score(query: str, text: str, filename: str) -> float:
                 if qw in dw or dw in qw:
                     best = max(best, 0.95)
                     break
-                elif len(qw) >= 2 and len(dw) >= 2 and abs(len(qw) - len(dw)) <= 2 and qw[0] == dw[0]:
+                elif len(qw) >= 2 and len(dw) >= 2 and abs(len(qw) - len(dw)) <= 2:
                     sim = SequenceMatcher(None, qw, dw).ratio()
-                    if sim >= 0.72:
+                    if sim >= 0.70:
                         best = max(best, round(sim, 3))
             elif len(qw) >= 3 and len(dw) >= 3:
-                if qw in dw and len(dw) - len(qw) <= 4:
+                # Substring containment
+                if (qw in dw and len(dw) - len(qw) <= 5) or (dw in qw and len(qw) - len(dw) <= 3):
                     best = max(best, 0.90)
-                    break
-                elif len(qw) >= 4 and len(dw) >= 4 and abs(len(qw) - len(dw)) <= 2 and qw[0] == dw[0]:
-                    sim = SequenceMatcher(None, qw, dw).ratio()
-                    if sim >= 0.80:
-                        best = max(best, round(sim, 3))
+                    if best >= 0.95:
+                        break
+                # Paper 2 Cross-Modal Normalized Levenshtein & OCR Glyph Confusion Similarity
+                from app.search.research_algorithms import compute_paper2_ocr_similarity
+                p2_sim = compute_paper2_ocr_similarity(qw, dw)
+                min_p2 = 0.60 if len(qw) >= 5 else 0.70
+                if p2_sim >= min_p2:
+                    best = max(best, round(p2_sim, 3))
+                    if best >= 0.95:
+                        break
+
 
         word_scores.append(best)
 
     return sum(word_scores) / len(word_scores)
+
 
 
 def exact_search(query: str, min_score: float = 0.65) -> List[Dict[str, Any]]:

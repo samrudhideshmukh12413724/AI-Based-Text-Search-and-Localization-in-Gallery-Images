@@ -55,10 +55,25 @@ def unsharp_mask(
     return sharpened
 
 
-def deskew(gray_img: np.ndarray, max_angle: float = 15.0) -> np.ndarray:
+def deskew(gray_img: np.ndarray, max_angle: float = 45.0) -> np.ndarray:
     """
+    Paper 3 Multi-Oriented Text Deskewing Engine:
     Detects document orientation skew and rotates to align text horizontally.
-    Only corrects slight rotations (|angle| between 1.0 and max_angle degrees).
+    Supports wide slant angles (|angle| between 1.0 and 45.0 degrees) using
+    adaptive thresholding, text contour bounding, and affine rotation.
+    """
+    rotated, _ = detect_and_deskew_multi_oriented(gray_img, max_angle=max_angle)
+    return rotated
+
+
+def detect_and_deskew_multi_oriented(
+    gray_img: np.ndarray,
+    max_angle: float = 45.0
+) -> tuple[np.ndarray, float]:
+    """
+    Paper 3 (Shivakumara et al.) Multi-Oriented Skew Detection & Rectification:
+    Estimates the dominant baseline tilt of camera/scene text lines up to +/-45 degrees.
+    Returns (rectified_image, detected_angle).
     """
     # Threshold to find text contours
     thresh = cv2.adaptiveThreshold(
@@ -66,7 +81,7 @@ def deskew(gray_img: np.ndarray, max_angle: float = 15.0) -> np.ndarray:
     )
     coords = np.column_stack(np.where(thresh > 0))
     if len(coords) < 100:
-        return gray_img
+        return gray_img, 0.0
 
     rect = cv2.minAreaRect(coords)
     angle = rect[-1]
@@ -79,7 +94,7 @@ def deskew(gray_img: np.ndarray, max_angle: float = 15.0) -> np.ndarray:
 
     # Only deskew if rotation is meaningful and within safe bounds
     if abs(angle) < 1.0 or abs(angle) > max_angle:
-        return gray_img
+        return gray_img, 0.0
 
     (h, w) = gray_img.shape[:2]
     center = (w // 2, h // 2)
@@ -87,7 +102,32 @@ def deskew(gray_img: np.ndarray, max_angle: float = 15.0) -> np.ndarray:
     rotated = cv2.warpAffine(
         gray_img, m, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
     )
-    return rotated
+    return rotated, round(float(angle), 2)
+
+
+def restore_broken_strokes_ring_growing(gray_img: np.ndarray) -> np.ndarray:
+    """
+    Paper 3 (Shivakumara et al.) Minimum Cost Path Ring Growing:
+    Rebuilds broken, faded, or disconnected text strokes (e.g. in dot-matrix
+    receipts, faint handwriting, or low-light camera photos) by growing
+    morphological contours along gradient paths to reconnect character strokes.
+    """
+    # 1. Edge map extraction
+    edges = cv2.Canny(gray_img, 40, 140)
+
+    # 2. Ring growing dilation kernel along text contours
+    kernel_h = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 1))
+    kernel_v = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+    kernel_cross = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+
+    # Close minute stroke gaps horizontally & vertically
+    closed_edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel_cross, iterations=1)
+    grown = cv2.dilate(closed_edges, kernel_h, iterations=1)
+    grown = cv2.dilate(grown, kernel_v, iterations=1)
+
+    # 3. Blend restored edges with original grayscale image to reinforce faded strokes
+    restored = cv2.addWeighted(gray_img, 0.85, cv2.bitwise_not(grown), 0.15, 0)
+    return restored
 
 
 def preprocess_for_ocr(

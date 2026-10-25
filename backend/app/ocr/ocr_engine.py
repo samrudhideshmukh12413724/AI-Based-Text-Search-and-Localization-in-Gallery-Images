@@ -14,7 +14,12 @@ import numpy as np
 import torch
 
 from app.ocr.quality import assess_image_quality
-from app.ocr.preprocessing import preprocess_for_ocr
+from app.ocr.preprocessing import (
+    preprocess_for_ocr,
+    detect_and_deskew_multi_oriented,
+    restore_broken_strokes_ring_growing,
+)
+
 
 from PIL import Image, ImageOps
 
@@ -146,7 +151,19 @@ def _unrotate_poly(pts: np.ndarray, ori: str, H_sc: int, W_sc: int) -> np.ndarra
         x_unrot = W_sc - 1 - x
         y_unrot = H_sc - 1 - y
         return np.stack([x_unrot, y_unrot], axis=1)
+    elif ori.startswith("affine_"):
+        # Paper 3 Multi-Oriented Arbitrary Angle Inverse Affine Projection
+        try:
+            ang = float(ori.split("_")[1])
+            center = (W_sc // 2, H_sc // 2)
+            M_inv = cv2.getRotationMatrix2D(center, -ang, 1.0)
+            pts_homo = np.hstack([pts, np.ones((pts.shape[0], 1), dtype=np.float32)])
+            unrot = (M_inv @ pts_homo.T).T
+            return unrot
+        except Exception:
+            return pts.copy()
     return pts.copy()
+
 
 
 def _box_iou(b1: dict, b2: dict) -> float:
@@ -309,6 +326,33 @@ def extract_text_adaptive(
 
         all_raw_boxes = best_boxes
         preprocessing_applied.append(f"orientation_{best_ori_name}_selected")
+
+        # 2B. Paper 3 (Shivakumara et al.) Multi-Oriented Arbitrary Tilt Rectification (+/- 45°)
+        # When orthogonal passes detect sparse/tilted text, detect the dominant baseline slant
+        if len([b for b in all_raw_boxes if len(b["text"].strip()) >= 2]) < 5 or best_ori_score < 15.0:
+            deskewed_canvas, detected_slant = detect_and_deskew_multi_oriented(scaled_gray, max_angle=45.0)
+            if abs(detected_slant) >= 2.5:
+                slant_tag = f"affine_{detected_slant}"
+                # Convert grayscale deskewed canvas to 3-channel for OCR reader
+                slant_img = cv2.cvtColor(deskewed_canvas, cv2.COLOR_GRAY2BGR)
+                slant_boxes = _extract_boxes_for_image(slant_img, slant_tag)
+                slant_score = _calc_orientation_score(slant_boxes)
+                if slant_score > best_ori_score:
+                    best_ori_score = slant_score
+                    all_raw_boxes = slant_boxes
+                    preprocessing_applied.append(f"paper3_multi_oriented_deskew_{detected_slant}deg")
+
+        # 2C. Paper 3 (Shivakumara et al.) Minimum Cost Path Ring Growing Stroke Restoration
+        # If words remain sparse or faint, reinforce broken character strokes along contours
+        if len([b for b in all_raw_boxes if len(b["text"].strip()) >= 2]) < 3:
+            restored_canvas = restore_broken_strokes_ring_growing(scaled_gray)
+            restored_img = cv2.cvtColor(restored_canvas, cv2.COLOR_GRAY2BGR)
+            restored_boxes = _extract_boxes_for_image(restored_img, "0")
+            restored_score = _calc_orientation_score(restored_boxes)
+            if restored_score > best_ori_score:
+                all_raw_boxes = restored_boxes
+                preprocessing_applied.append("paper3_ring_growing_stroke_restoration")
+
 
     # Multilingual Marathi Handling:
     # NEVER run Marathi OCR on English documents simply because word count is low!

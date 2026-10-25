@@ -405,3 +405,29 @@ def build_highlight_payload(
         "text_bounding_boxes": text_boxes,
     }
 
+
+def refine_bounding_box_slack(
+    box: list,
+    padding_pct: float = 0.10,
+    clamp_max: float = 1.0,
+) -> list:
+    """
+    Paper 16 (Electronics 2025): Adaptive Bounding Box Slack Smoothing.
+    Expands candidate bounding box coordinates [ymin, xmin, ymax, xmax] by padding_pct (default 10%)
+    to prevent strict IoU false-negative rejection on mobile phone camera angles.
+    """
+    if len(box) != 4:
+        return box
+    ymin, xmin, ymax, xmax = box
+    h = ymax - ymin
+    w = xmax - xmin
+    pad_h = h * padding_pct
+    pad_w = w * padding_pct
+    return [
+        max(0.0, round(ymin - pad_h, 4)),
+        max(0.0, round(xmin - pad_w, 4)),
+        min(clamp_max, round(ymax + pad_h, 4)),
+        min(clamp_max, round(xmax + pad_w, 4)),
+    ]
+
+

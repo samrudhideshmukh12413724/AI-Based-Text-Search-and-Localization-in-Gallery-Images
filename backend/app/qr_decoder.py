@@ -108,14 +108,69 @@ def parse_vcard_or_mecard(payload: str) -> Dict[str, str]:
     return data
 
 
-def enrich_qr_payload(payload: str, fetch_web: bool = False) -> Dict[str, Any]:
+_web_scrape_cache: Dict[str, Dict[str, str]] = {}
+
+
+def scrape_web_context(url: str, timeout: float = 2.0) -> Dict[str, str]:
+    """
+    Paper 3 (Ridwansyah et al.) Web Scraping & Contextual Binding:
+    Extracts high-value textual metadata (<title>, <meta description>, <h1>)
+    from in-image QR URLs and binds them to the image's search index.
+    Protected by SSRF firewall, in-memory cache, and strict timeout.
+    """
+    if url in _web_scrape_cache:
+        return _web_scrape_cache[url]
+
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return {}
+
+    # SSRF Firewall: Block private/internal addresses
+    host = parsed.netloc.lower().split(":")[0]
+    if host in ("localhost", "127.0.0.1") or host.startswith(("192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.2", "172.3", "169.254.")):
+        return {}
+
+    result = {}
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DocuLensAI/5.0 WebContextFetcher"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/html" in content_type:
+                html_bytes = resp.read(65536)
+                html_text = html_bytes.decode("utf-8", errors="ignore")
+
+                title_match = re.search(r"<title[^>]*>(.*?)</title>", html_text, re.IGNORECASE | re.DOTALL)
+                if title_match:
+                    result["title"] = re.sub(r"\s+", " ", title_match.group(1)).strip()
+
+                desc_match = re.search(r'<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']', html_text, re.IGNORECASE | re.DOTALL)
+                if not desc_match:
+                    desc_match = re.search(r'<meta[^>]*content=["\'](.*?)["\'][^>]*name=["\']description["\']', html_text, re.IGNORECASE | re.DOTALL)
+                if desc_match:
+                    result["description"] = re.sub(r"\s+", " ", desc_match.group(1)).strip()
+
+                h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html_text, re.IGNORECASE | re.DOTALL)
+                if h1_match:
+                    clean_h1 = re.sub(r"<[^>]+>", "", h1_match.group(1))
+                    result["header"] = re.sub(r"\s+", " ", clean_h1).strip()
+    except Exception:
+        pass
+
+    _web_scrape_cache[url] = result
+    return result
+
+
+def enrich_qr_payload(payload: str, fetch_web: bool = True) -> Dict[str, Any]:
     """
     Enriches QR payload by:
     1. Parsing UPI payment URLs (case-insensitive parameters) for Merchant/Payee name, VPA, and Provider.
     2. Parsing EMVCo / BharatQR TLV payloads for Merchant Name (Tag 59).
     3. Parsing vCard / MeCard payloads for person / business identity.
     4. Guarding against identity hallucination when only an identifier is present.
-    5. Fetching Web URLs (safe fallback) to extract title and description.
+    5. Paper 3 Web Scraping of URLs: extracts live page title, meta description, and headers.
     """
     cleaned = payload.strip()
     if not cleaned:
@@ -134,7 +189,10 @@ def enrich_qr_payload(payload: str, fetch_web: bool = False) -> Dict[str, Any]:
     providers: List[str] = []
     vpas: List[str] = []
     details: List[str] = []
+    web_title = ""
+    web_desc = ""
     is_payment = False
+
 
     # Case 1: UPI Payment Link (PhonePe, Paytm, Google Pay, BHIM)
     if cleaned.lower().startswith("upi:"):
@@ -257,21 +315,15 @@ def enrich_qr_payload(payload: str, fetch_web: bool = False) -> Dict[str, Any]:
             pass
 
         if fetch_web:
-            try:
-                req = urllib.request.Request(
-                    target_url,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-                )
-                with urllib.request.urlopen(req, timeout=1.0) as resp:
-                    content_type = resp.headers.get("Content-Type", "")
-                    if "text/html" in content_type:
-                        html_bytes = resp.read(32768)
-                        html_text = html_bytes.decode("utf-8", errors="ignore")
-                        title_match = re.search(r"<title[^>]*>(.*?)</title>", html_text, re.IGNORECASE | re.DOTALL)
-                        if title_match:
-                            details.append(f"[Web Title: {title_match.group(1).strip()}]")
-            except Exception:
-                pass
+            web_data = scrape_web_context(target_url, timeout=2.0)
+            web_title = web_data.get("title", "")
+            web_desc = web_data.get("description", "")
+            if web_title:
+                details.append(f"[Web Title: {web_title}]")
+            if web_desc:
+                details.append(f"[Web Description: {web_desc}]")
+            if web_data.get("header") and web_data.get("header") != web_title:
+                details.append(f"[Header: {web_data['header']}]")
 
     # Assemble enriched textual representation
     enriched_text = f"{cleaned} {' '.join(details)}".strip()
@@ -284,7 +336,10 @@ def enrich_qr_payload(payload: str, fetch_web: bool = False) -> Dict[str, Any]:
         "providers": sorted(list(set(providers))),
         "vpas": sorted(list(set(vpas))),
         "is_payment": is_payment,
+        "web_title": web_title,
+        "web_description": web_desc,
     }
+
 
 
 def _get_aruco_detector():
@@ -297,7 +352,10 @@ def _get_aruco_detector():
     return None
 
 
-def extract_qr_payloads(image_input: Union[str, Path, np.ndarray]) -> Dict[str, Any]:
+def extract_qr_payloads(
+    image_input: Union[str, Path, np.ndarray],
+    fetch_web: bool = True,
+) -> Dict[str, Any]:
     """
     Robust Dual-Detector QR Engine:
     1. Primary: cv2.QRCodeDetectorAruco (resilient against perspective, blur, and occlusions).
@@ -405,8 +463,9 @@ def extract_qr_payloads(image_input: Union[str, Path, np.ndarray]) -> Dict[str, 
 
         for e in decoded_entries:
             p = e["payload"]
-            enr = enrich_qr_payload(p)
+            enr = enrich_qr_payload(p, fetch_web=fetch_web)
             enriched_payloads.append(enr["enriched_text"])
+
             all_merchants.extend(enr["merchants"])
             all_payees.extend(enr["payees"])
             all_providers.extend(enr["providers"])
